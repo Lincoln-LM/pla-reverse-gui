@@ -1,0 +1,3 @@
+[submodule "pla_reverse_gui/pla_reverse_main"]
+	path = pla_reverse_gui/pla_reverse_main
+	url = https://github.com/Lincoln-LM/pla-reverse.git
