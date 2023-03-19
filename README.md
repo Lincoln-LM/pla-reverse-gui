@@ -1,6 +1,11 @@
 # pla-reverse-gui
 PySide6-based GUI for Seed Cracking and RNG w/o CFW assistance in Pokemon: Legends Arceus
 
+![](./screenshots/map.png)
+![](./screenshots/iv_calc.png)
+![](./screenshots/seed_finder.png)
+![](./screenshots/seed_finder_with_console.png)
+
 ## pla-reverse-gui relies on the following projects:
 - [pla-reverse](https://github.com/Lincoln-LM/pla-reverse) as the core for seed cracking computations
 - [numba_pokemon_prngs](https://github.com/Lincoln-LM/numba_pokemon_prngs) for RNG implementations as well as game resources

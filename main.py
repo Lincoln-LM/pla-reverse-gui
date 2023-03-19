@@ -13,6 +13,7 @@ if __name__ == "__main__":
     window = MapWindow()
     app.setStyleSheet(qdarkstyle.load_stylesheet())
     window.show()
+    window.setFocus()
 
     # Run the Qt event loop
     sys.exit(app.exec())

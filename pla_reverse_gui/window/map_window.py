@@ -1,5 +1,5 @@
+"""QWidget window for main map display"""
 import numpy as np
-from numba_pokemon_prngs.data import SPECIES_EN
 from numba_pokemon_prngs.data.encounter import (
     ENCOUNTER_INFORMATION_LA,
     ENCOUNTER_TABLE_NAMES_LA,
@@ -8,6 +8,8 @@ from numba_pokemon_prngs.data.encounter import (
 )
 from numba_pokemon_prngs.enums import LAArea
 from pyqtlet2 import L, MapWidget
+
+# pylint: disable=no-name-in-module
 from qtpy.QtWidgets import (
     QComboBox,
     QHBoxLayout,
@@ -17,8 +19,15 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
+# pylint: enable=no-name-in-module
+
+from ..util import get_name_en
+from .seed_finder_window import SeedFinderWindow
+
 
 class MapWindow(QWidget):
+    """QWidget window for main map display"""
+
     MAP_NAMES: dict[LAArea, str] = {
         LAArea.OBSIDIAN_FIELDLANDS: "obsidianfieldlands",
         LAArea.CRIMSON_MIRELANDS: "crimsonmirelands",
@@ -29,6 +38,8 @@ class MapWindow(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("PLA Seed Finder")
+        self.selected_marker = None
         self.tile_layer: L.tileLayer = None
         self.markers_initialized = False
         self.setup_widgets()
@@ -54,6 +65,7 @@ class MapWindow(QWidget):
         self.spawner_combobox.currentIndexChanged.connect(self.spawner_combobox_changed)
         self.spawner_summary = QLabel("")
         self.seed_finder_button = QPushButton("Seed Finder")
+        self.seed_finder_button.clicked.connect(self.open_seed_finder)
 
         self.options_layout.addWidget(self.location_combobox)
         self.options_layout.addWidget(self.spawner_combobox)
@@ -112,10 +124,15 @@ class MapWindow(QWidget):
         self.rendered_markers = []
 
     def select_map(self, index: int) -> None:
+        """Callback to be run when the map combobox is changed"""
         map_id: LAArea = self.location_combobox.itemData(index)
         self.spawner_information = SPAWNER_INFORMATION_LA[map_id].spawners
         self.encounter_information = ENCOUNTER_INFORMATION_LA[map_id]
+        if not hasattr(self, "map"):
+            return
         self.map.setView([4096, 4096], 1)
+        if self.tile_layer is not None:
+            self.map.removeLayer(self.tile_layer)
         self.tile_layer = L.tileLayer(
             f"https://www.serebii.net/pokearth/hisui/{self.MAP_NAMES[map_id]}/tile_{{z}}-{{x}}-{{y}}.png",
             options="""{
@@ -186,7 +203,7 @@ class MapWindow(QWidget):
                 f"Spawn Count: {spawner.min_spawn_count}-{spawner.max_spawn_count}\n"
                 f"Table: {ENCOUNTER_TABLE_NAMES_LA.get(np.uint64(spawner.encounter_table_id), '')} - 0x{spawner.encounter_table_id:016X}\n"
                 + "\n".join(
-                    f" - {'Alpha ' if slot.is_alpha else ''}{SPECIES_EN[slot.species]}{f'-{slot.form}' if slot.form else ''} Lv. {slot.min_level}-{slot.max_level} {f'{slot.guaranteed_ivs} Guaranteed IVs' if slot.guaranteed_ivs else ''}"
+                    f" - {get_name_en(slot.species, slot.form, slot.is_alpha)} Lv. {slot.min_level}-{slot.max_level} {f'{slot.guaranteed_ivs} Guaranteed IVs' if slot.guaranteed_ivs else ''}"
                     for slot in self.encounter_information[
                         np.uint64(spawner.encounter_table_id)
                     ].slots.view(np.recarray)
@@ -197,3 +214,17 @@ class MapWindow(QWidget):
             f"{marker.jsName}.setIcon({self.selected_marker_icon.jsName})"
         )
         self.selected_marker = marker
+
+    def open_seed_finder(self) -> None:
+        """Open Seed Finder for spawner"""
+        spawner = self.spawner_information[self.spawner_combobox.currentIndex()]
+        encounter_table = self.encounter_information[
+            np.uint64(spawner.encounter_table_id)
+        ]
+        seed_finder_window = SeedFinderWindow(
+            self,
+            spawner,
+            encounter_table,
+        )
+        seed_finder_window.show()
+        seed_finder_window.setFocus()
