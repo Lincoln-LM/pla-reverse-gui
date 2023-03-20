@@ -260,10 +260,11 @@ class ComputeGroupSeedThread(QThread):
     finished = Signal()
     log = Signal(str)
 
-    def __init__(self, fixed_seeds_2, generator_seeds) -> None:
+    def __init__(self, fixed_seeds_2, generator_seeds, multi_spawner: bool) -> None:
         super().__init__()
         self.fixed_seeds_2 = fixed_seeds_2
         self.generator_seeds = generator_seeds
+        self.multi_spawner = multi_spawner
 
     def run(self) -> None:
         """Thread work"""
@@ -271,7 +272,10 @@ class ComputeGroupSeedThread(QThread):
         queue = cl.CommandQueue(context)
         self.log.emit("Building kernel....")
         program = cl.Program(
-            context, pla_reverse.shaders.build_shader_code("group_seed_shader", {})
+            context,
+            pla_reverse.shaders.build_shader_code(
+                "group_seed_shader", {"IS_MULTISPAWNER": int(self.multi_spawner)}
+            ),
         ).build()
         host_results = np.zeros(1, np.uint64)
 
