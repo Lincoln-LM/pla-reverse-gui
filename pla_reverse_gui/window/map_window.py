@@ -7,6 +7,7 @@ from numba_pokemon_prngs.data.encounter import (
     SPAWNER_NAMES_LA,
 )
 from numba_pokemon_prngs.enums import LAArea
+from numba_pokemon_prngs.data.fbs.encounter_la import PlacementSpawner8a
 from pyqtlet2 import L, MapWidget
 
 # pylint: disable=no-name-in-module
@@ -197,7 +198,11 @@ class MapWindow(QWidget):
             )
         if marker in self.rendered_markers:
             self.spawner_combobox.setCurrentIndex(self.rendered_markers.index(marker))
-            spawner = self.spawner_combobox.currentData()
+            spawner: PlacementSpawner8a = self.spawner_combobox.currentData()
+            # disable seed finder for multispawners
+            self.seed_finder_button.setDisabled(
+                (spawner.min_spawn_count, spawner.max_spawn_count) != (1, 1)
+            )
             self.map.setZoom(2)
             self.map.setView(marker.latLng, 2)
             self.spawner_summary.setText(
