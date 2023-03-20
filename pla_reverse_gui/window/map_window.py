@@ -172,7 +172,8 @@ class MapWindow(QWidget):
             if spawner.is_mass_outbreak:
                 continue
             self.spawner_combobox.addItem(
-                f"{SPAWNER_NAMES_LA.get(spawner.spawner_id, '')} - 0x{spawner.spawner_id:016X}"
+                f"{SPAWNER_NAMES_LA.get(spawner.spawner_id, '')} - 0x{spawner.spawner_id:016X}",
+                spawner,
             )
 
         self.select_marker(self.rendered_markers[0])
@@ -196,7 +197,7 @@ class MapWindow(QWidget):
             )
         if marker in self.rendered_markers:
             self.spawner_combobox.setCurrentIndex(self.rendered_markers.index(marker))
-            spawner = self.spawner_information[self.spawner_combobox.currentIndex()]
+            spawner = self.spawner_combobox.currentData()
             self.map.setZoom(2)
             self.map.setView(marker.latLng, 2)
             self.spawner_summary.setText(
