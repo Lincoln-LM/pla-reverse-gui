@@ -130,8 +130,11 @@ def generate(
                 nature = fixed_rng.next_rand(25)
                 if len(nature_filter) != 0 and nature not in nature_filter:
                     continue
-                height = fixed_rng.next_rand(0x81) + fixed_rng.next_rand(0x80)
-                weight = fixed_rng.next_rand(0x81) + fixed_rng.next_rand(0x80)
+                if slot.is_alpha:
+                    height = weight = 255
+                else:
+                    height = fixed_rng.next_rand(0x81) + fixed_rng.next_rand(0x80)
+                    weight = fixed_rng.next_rand(0x81) + fixed_rng.next_rand(0x80)
                 pokemon = (
                     advance,
                     ko_path,

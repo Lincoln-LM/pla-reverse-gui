@@ -31,10 +31,11 @@ from qtpy import QtCore
 # pylint: enable=no-name-in-module
 
 from .result_table_widget import ResultTableWidget
-from ..util import get_name_en, get_personal_info
+from ..util import get_name_en, get_personal_info, get_personal_index
 from .checkable_combobox_widget import CheckableComboBox
 from .range_widget import RangeWidget
 from ..generator import generate
+from ..pla_reverse_main.pla_reverse.size import calc_display_size
 
 
 def labled_widget(
@@ -249,6 +250,13 @@ class GeneratorWindow(QDialog):
             weight,
         ) in rows:
             personal_info = get_personal_info(species, form)
+            personal_index = get_personal_index(species, form)
+            display_size_metric = calc_display_size(
+                personal_index, height, weight, imperial=False
+            )
+            display_size_imperial = calc_display_size(
+                personal_index, height, weight, imperial=True
+            )
             row_i = self.result_table.rowCount()
             self.result_table.insertRow(row_i)
             row = (
@@ -265,8 +273,8 @@ class GeneratorWindow(QDialog):
                 ],
                 *(str(iv) for iv in ivs),
                 "♂" if gender == 0 else "♀" if gender == 1 else "○",
-                str(height),
-                str(weight),
+                f"{display_size_metric[0]:.02f} m | {display_size_imperial[0][0]:.00f}'{display_size_imperial[0][1]:.00f}\" ({height})",
+                f"{display_size_metric[1]:.02f} kg | {display_size_imperial[1]:.01f} lbs ({weight})",
             )
             for j, value in enumerate(row):
                 item = QTableWidgetItem(value)
