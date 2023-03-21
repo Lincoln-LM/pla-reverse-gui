@@ -76,12 +76,21 @@ class SeedFinderWindow(QDialog):
             f"{ENCOUNTER_TABLE_NAMES_LA.get(np.uint64(spawner.encounter_table_id), '')}"
         )
         self.spawner: PlacementSpawner8a = spawner
+        self.is_multi_spawner: bool = self.spawner.min_spawn_count > 1
         self.encounter_table: EncounterAreaLA = encounter_table
         self.main_layout = QVBoxLayout(self)
         self.sub_widget = QWidget()
         self.sub_layout = QHBoxLayout(self.sub_widget)
-        self.pokemon_1 = PokemonInfoWidget("Pokemon 1:", spawner, encounter_table)
-        self.pokemon_2 = PokemonInfoWidget("Pokemon 2:", spawner, encounter_table)
+        self.pokemon_1 = PokemonInfoWidget(
+            ("Multi-Spawner " if self.is_multi_spawner else "") + "Pokemon 1:",
+            spawner,
+            encounter_table,
+        )
+        self.pokemon_2 = PokemonInfoWidget(
+            ("Multi-Spawner " if self.is_multi_spawner else "") + "Pokemon 2:",
+            spawner,
+            encounter_table,
+        )
         self.compute_seed_button = QPushButton("Compute Group Seed")
         self.compute_seed_button.clicked.connect(self.compute_seed)
 
@@ -185,7 +194,7 @@ class SeedFinderWindow(QDialog):
                 self.console_window.log("Generator seed search unsuccessful")
                 return
             self.worker_thread = ComputeGroupSeedThread(
-                self.results_2, self.results_gen
+                self.results_2, self.results_gen, self.is_multi_spawner
             )
             self.worker_thread.log.connect(self.console_window.log)
             self.worker_thread.finished.connect(

@@ -203,7 +203,7 @@ class MapWindow(QWidget):
         if marker in self.rendered_markers:
             self.spawner_combobox.setCurrentIndex(self.rendered_markers.index(marker))
             spawner: PlacementSpawner8a = self.spawner_combobox.currentData()
-            # disable seed finder for multispawners
+            # disable seed finder for variable multispawners
             self.seed_finder_button.setDisabled(
                 spawner.min_spawn_count != spawner.max_spawn_count
             )
