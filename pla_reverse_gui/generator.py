@@ -66,7 +66,6 @@ def generate(
         queue.append(([np.uint8(3)], advance_seed(seed, 3)))
     initial_advances = len(queue[0][0])
     while len(queue) != 0:
-        # TODO: guard clause/return early for filters
         item = queue.pop()
         advance = len(item[0]) - initial_advances
         if advance >= min_adv:
@@ -74,6 +73,7 @@ def generate(
             group_rng.re_init(group_seed)
             for _ in range(spawn_count):
                 generator_rng.re_init(group_rng.next())
+                group_rng.next()
                 slot: SlotLA = encounter_table.calc_slot(
                     generator_rng.next() * 5.421010862427522e-20,
                     np.int64(time),
@@ -82,77 +82,72 @@ def generate(
                 gender_ratio, shiny_rolls, filtered_species = species_info[
                     (slot.species, slot.form)
                 ]
-                if ((not alpha_filter) or slot.is_alpha) and filtered_species:
-                    fixed_rng.re_init(generator_rng.next())
-                    encryption_constant = fixed_rng.next_rand(0xFFFFFFFF)
-                    sidtid = fixed_rng.next_rand(0xFFFFFFFF)
-                    for _ in range(shiny_rolls):
-                        pid = fixed_rng.next_rand(0xFFFFFFFF)
-                        xor = (
-                            (pid >> 16)
-                            ^ (sidtid >> 16)
-                            ^ (pid & 0xFFFF)
-                            ^ (sidtid & 0xFFFF)
-                        )
-                        shiny = 2 if xor == 0 else 1 if xor < 16 else 0
-                        if shiny:
-                            break
-                    if shiny_filter == 15 or shiny_filter & shiny:
-                        ivs = np.zeros(6, np.uint8)
-                        for _ in range(slot.guaranteed_ivs):
-                            index = fixed_rng.next_rand(6)
-                            while ivs[index] != 0:
-                                index = fixed_rng.next_rand(6)
-                            ivs[index] = 31
-                        for i in range(6):
-                            if ivs[i] == 0:
-                                ivs[i] = fixed_rng.next_rand(32)
-                        passes_ivs = True
-                        for i, (minimum, maximum) in enumerate(iv_filters):
-                            if minimum > ivs[i]:
-                                passes_ivs = False
-                                break
-                            if maximum < ivs[i]:
-                                passes_ivs = False
-                                break
-                        if passes_ivs:
-                            ability = fixed_rng.next_rand(2)
-                            gender = (
-                                0
-                                if gender_ratio == 0
-                                else 1
-                                if gender_ratio == 254
-                                else 2
-                            )
-                            if 1 <= gender_ratio < 254:
-                                gender = (fixed_rng.next_rand(253) + 1) < gender_ratio
-                            if len(gender_filter) == 0 or gender in gender_filter:
-                                nature = fixed_rng.next_rand(25)
-                                if len(nature_filter) == 0 or nature in nature_filter:
-                                    height = fixed_rng.next_rand(
-                                        0x81
-                                    ) + fixed_rng.next_rand(0x80)
-                                    weight = fixed_rng.next_rand(
-                                        0x81
-                                    ) + fixed_rng.next_rand(0x80)
-                                    pokemon = (
-                                        advance,
-                                        ko_path,
-                                        (slot.species, slot.form, slot.is_alpha),
-                                        np.uint32(encryption_constant),
-                                        np.uint32(pid),
-                                        ivs,
-                                        np.uint8(ability),
-                                        np.uint8(gender),
-                                        np.uint8(nature),
-                                        np.uint8(shiny),
-                                        np.uint8(height),
-                                        np.uint8(weight),
-                                    )
-                                    results.append(pokemon)
+                if not filtered_species:
+                    continue
+                if alpha_filter and not slot.is_alpha:
+                    continue
+                fixed_rng.re_init(generator_rng.next())
+                encryption_constant = fixed_rng.next_rand(0xFFFFFFFF)
+                sidtid = fixed_rng.next_rand(0xFFFFFFFF)
+                for _ in range(shiny_rolls):
+                    pid = fixed_rng.next_rand(0xFFFFFFFF)
+                    xor = (
+                        (pid >> 16)
+                        ^ (sidtid >> 16)
+                        ^ (pid & 0xFFFF)
+                        ^ (sidtid & 0xFFFF)
+                    )
+                    shiny = 2 if xor == 0 else 1 if xor < 16 else 0
+                    if shiny:
+                        break
+                if shiny_filter != 15 and not (shiny_filter & shiny):
+                    continue
+                ivs = np.zeros(6, np.uint8)
+                for _ in range(slot.guaranteed_ivs):
+                    index = fixed_rng.next_rand(6)
+                    while ivs[index] != 0:
+                        index = fixed_rng.next_rand(6)
+                    ivs[index] = 31
+                for i in range(6):
+                    if ivs[i] == 0:
+                        ivs[i] = fixed_rng.next_rand(32)
+                passes_ivs = True
+                for i, (minimum, maximum) in enumerate(iv_filters):
+                    if minimum > ivs[i]:
+                        passes_ivs = False
+                        break
+                    if maximum < ivs[i]:
+                        passes_ivs = False
+                        break
+                if not passes_ivs:
+                    continue
+                ability = fixed_rng.next_rand(2)
+                gender = 0 if gender_ratio == 0 else 1 if gender_ratio == 254 else 2
+                if 1 <= gender_ratio < 254:
+                    gender = (fixed_rng.next_rand(253) + 1) < gender_ratio
+                if len(gender_filter) != 0 and gender not in gender_filter:
+                    continue
+                nature = fixed_rng.next_rand(25)
+                if len(nature_filter) != 0 and nature not in nature_filter:
+                    continue
+                height = fixed_rng.next_rand(0x81) + fixed_rng.next_rand(0x80)
+                weight = fixed_rng.next_rand(0x81) + fixed_rng.next_rand(0x80)
+                pokemon = (
+                    advance,
+                    ko_path,
+                    (slot.species, slot.form, slot.is_alpha),
+                    np.uint32(encryption_constant),
+                    np.uint32(pid),
+                    ivs,
+                    np.uint8(ability),
+                    np.uint8(gender),
+                    np.uint8(nature),
+                    np.uint8(shiny),
+                    np.uint8(height),
+                    np.uint8(weight),
+                )
+                results.append(pokemon)
                 # TODO: level rand?
-
-                group_rng.next()
 
         if advance >= (max_adv - 1):
             continue
