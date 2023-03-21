@@ -71,7 +71,7 @@ def generate(
         if advance >= min_adv:
             ko_path, group_seed = item
             group_rng.re_init(group_seed)
-            for _ in range(spawn_count):
+            for _ in range(ko_path[-1]):
                 generator_rng.re_init(group_rng.next())
                 group_rng.next()
                 slot: SlotLA = encounter_table.calc_slot(
@@ -152,6 +152,9 @@ def generate(
         if advance >= (max_adv - 1):
             continue
         for kos in range(1, spawn_count + 1):
-            new_item = (ko_path + [np.uint8(kos)], advance_seed(group_seed, kos))
+            new_item = (
+                ko_path + [np.uint8(kos)],
+                advance_seed(group_seed, ko_path[-1]),
+            )
             queue.append(new_item)
     return results
