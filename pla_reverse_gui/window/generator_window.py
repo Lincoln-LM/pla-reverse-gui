@@ -279,3 +279,9 @@ class GeneratorWindow(QDialog):
             for j, value in enumerate(row):
                 item = QTableWidgetItem(value)
                 self.result_table.setItem(row_i, j, item)
+            # TODO: storing encounter info in the table feels hacky
+            self.result_table.encounter_table = self.encounter_table
+            self.result_table.seed = seed
+            self.result_table.weather = self.weather_combobox.currentData()
+            self.result_table.time = self.time_combobox.currentData()
+            self.result_table.species_info = species_info
