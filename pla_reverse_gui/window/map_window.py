@@ -24,6 +24,7 @@ from qtpy.QtWidgets import (
 
 from ..util import get_name_en
 from .seed_finder_window import SeedFinderWindow
+from .generator_window import GeneratorWindow
 
 
 class MapWindow(QWidget):
@@ -67,11 +68,14 @@ class MapWindow(QWidget):
         self.spawner_summary = QLabel("")
         self.seed_finder_button = QPushButton("Seed Finder")
         self.seed_finder_button.clicked.connect(self.open_seed_finder)
+        self.generator_button = QPushButton("Open Generator")
+        self.generator_button.clicked.connect(self.open_generator)
 
         self.options_layout.addWidget(self.location_combobox)
         self.options_layout.addWidget(self.spawner_combobox)
         self.options_layout.addWidget(self.spawner_summary)
         self.options_layout.addWidget(self.seed_finder_button)
+        self.options_layout.addWidget(self.generator_button)
 
         self.main_layout.addWidget(self.options_widget, 0)
         self.main_layout.addWidget(self.map_widget, 1)
@@ -203,6 +207,9 @@ class MapWindow(QWidget):
             self.seed_finder_button.setDisabled(
                 spawner.min_spawn_count != spawner.max_spawn_count
             )
+            self.generator_button.setDisabled(
+                spawner.min_spawn_count != spawner.max_spawn_count
+            )
             self.map.setZoom(2)
             self.map.setView(marker.latLng, 2)
             self.spawner_summary.setText(
@@ -234,3 +241,17 @@ class MapWindow(QWidget):
         )
         seed_finder_window.show()
         seed_finder_window.setFocus()
+
+    def open_generator(self) -> None:
+        """Open Generator for spawner"""
+        spawner = self.spawner_information[self.spawner_combobox.currentIndex()]
+        encounter_table = self.encounter_information[
+            np.uint64(spawner.encounter_table_id)
+        ]
+        generator_window = GeneratorWindow(
+            self,
+            spawner,
+            encounter_table,
+        )
+        generator_window.show()
+        generator_window.setFocus()

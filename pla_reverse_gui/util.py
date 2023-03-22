@@ -169,8 +169,19 @@ def get_personal_index(species: int, form: int = 0) -> int:
     return PERSONAL_INFO_LA[species].form_stats_index + form - 1
 
 
-def find_evo_line(species, form: int = 0) -> tuple[tuple[int, int]]:
+def find_evo_line(species: int, form: int = 0) -> tuple[tuple[int, int]]:
     """Find the evolution line of a pokemon given its species and form"""
     return next(
         (line for line in EVO_LINES if (species, form) in line), ((species, form),)
     )
+
+
+def calc_effort_level(iv: int) -> int:
+    """Calculate the initial effort levels of a pokemon"""
+    if iv >= 31:
+        return 3
+    if iv >= 26:
+        return 2
+    if iv >= 20:
+        return 1
+    return 0

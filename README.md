@@ -5,6 +5,8 @@ PySide6-based GUI for Seed Cracking and RNG w/o CFW assistance in Pokemon: Legen
 ![](./screenshots/iv_calc.png)
 ![](./screenshots/seed_finder.png)
 ![](./screenshots/seed_finder_with_console.png)
+![](./screenshots/generator.png)
+![](./screenshots/path_tracker.png)
 
 ## pla-reverse-gui relies on the following projects:
 - [pla-reverse](https://github.com/Lincoln-LM/pla-reverse) as the core for seed cracking computations
