@@ -15,13 +15,13 @@ from qtpy.QtWidgets import (
     QWidget,
     QPushButton,
     QTextEdit,
-    QProgressBar,
 )
 
 # pylint: enable=no-name-in-module
 from qtpy.QtCore import Qt
 
 from .pokemon_info_widget import PokemonInfoWidget
+from .eta_progress_bar import ETAProgressBar
 from ..kernel_interface import (
     ComputeFixedSeedsThread,
     ComputeGeneratorSeedsThread,
@@ -38,7 +38,7 @@ class ConsoleWindow(QDialog):
         self.main_layout = QVBoxLayout(self)
         self.text_edit = QTextEdit()
         self.text_edit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.progress_bar = QProgressBar()
+        self.progress_bar = ETAProgressBar()
         self.main_layout.addWidget(self.text_edit)
         self.main_layout.addWidget(self.progress_bar)
 
