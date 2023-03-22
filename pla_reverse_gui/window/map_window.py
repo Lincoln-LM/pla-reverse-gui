@@ -104,7 +104,20 @@ class MapWindow(QWidget):
         )
         self.selected_marker_icon.addTo(self.map)
 
-        self.deselected_marker_icon = L.icon(
+        self.unuseable_marker_icon = L.icon(
+            "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png",
+            {
+                "shadowUrl": "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+                "iconSize": [25, 41],
+                "iconAnchor": [12, 41],
+                "popupAnchor": [1, -34],
+                "shadowSize": [41, 41],
+            },
+        )
+
+        self.unuseable_marker_icon.addTo(self.map)
+
+        self.single_spawner_icon = L.icon(
             "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
             {
                 "shadowUrl": "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
@@ -114,17 +127,45 @@ class MapWindow(QWidget):
                 "shadowSize": [41, 41],
             },
         )
-        self.deselected_marker_icon.addTo(self.map)
+        self.single_spawner_icon.addTo(self.map)
+
+        self.multi_spawner_icon = L.icon(
+            "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+            {
+                "shadowUrl": "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+                "iconSize": [25, 41],
+                "iconAnchor": [12, 41],
+                "popupAnchor": [1, -34],
+                "shadowSize": [41, 41],
+            },
+        )
+        self.multi_spawner_icon.addTo(self.map)
         self.all_markers: dict[LAArea, list[L.marker]] = {}
+        self.marker_icons: dict[L.marker, L.icon] = {}
         for map_id in self.MAP_NAMES.keys():
             marker_list = []
             for spawner in SPAWNER_INFORMATION_LA[map_id].spawners:
                 if spawner.is_mass_outbreak:
                     continue
+                single_spawner = (
+                    spawner.min_spawn_count == spawner.max_spawn_count
+                    and spawner.min_spawn_count == 1
+                )
+                multi_spawner = (
+                    spawner.min_spawn_count == spawner.max_spawn_count
+                    and spawner.min_spawn_count != 1
+                )
                 coords = spawner.coordinates.as_tuple()
                 marker = L.marker([coords[2] * -0.5, coords[0] * 0.5])
                 marker.click.connect(self.marker_onclick)
                 marker_list.append(marker)
+                self.marker_icons[marker] = (
+                    self.single_spawner_icon
+                    if single_spawner
+                    else self.multi_spawner_icon
+                    if multi_spawner
+                    else self.unuseable_marker_icon
+                )
             self.all_markers[map_id] = marker_list
         self.rendered_markers = []
 
@@ -158,6 +199,10 @@ class MapWindow(QWidget):
                 for marker in markers:
                     # every marker needs to exist before the map is loaded
                     self.map.addLayer(marker)
+                    # assign default icon
+                    self.map.runJavaScriptForMap(
+                        f"{marker.jsName}.setIcon({self.marker_icons[marker].jsName})"
+                    )
                     # unrender
                     self.map.runJavaScriptForMap(f"map.removeLayer({marker.layerName})")
         for rendered_marker in self.rendered_markers:
@@ -198,7 +243,7 @@ class MapWindow(QWidget):
         if self.selected_marker is not None:
             # deselect old marker
             self.map.runJavaScriptForMap(
-                f"{self.selected_marker.jsName}.setIcon({self.deselected_marker_icon.jsName})"
+                f"{self.selected_marker.jsName}.setIcon({self.marker_icons[self.selected_marker].jsName})"
             )
         if marker in self.rendered_markers:
             self.spawner_combobox.setCurrentIndex(self.rendered_markers.index(marker))
