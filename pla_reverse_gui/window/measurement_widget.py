@@ -72,12 +72,12 @@ class MeasurementWidget(QWidget):
 
         height_imperial = QWidget()
         height_imperial_layout = QHBoxLayout(height_imperial)
-        height_feet = QSpinBox(suffix=" ft")
-        height_inches = QSpinBox(suffix=" in")
+        height_feet = QSpinBox(suffix=" ft", maximum=99999)
+        height_inches = QSpinBox(suffix=" in", maximum=99999)
         height_imperial_layout.addWidget(height_feet)
         height_imperial_layout.addWidget(height_inches)
-        height_metric = QDoubleSpinBox(decimals=2, suffix=" m")
-        weight = QDoubleSpinBox()
+        height_metric = QDoubleSpinBox(decimals=2, suffix=" m", maximum=99999)
+        weight = QDoubleSpinBox(maximum=99999)
         self.measurements.append(
             (
                 species,
