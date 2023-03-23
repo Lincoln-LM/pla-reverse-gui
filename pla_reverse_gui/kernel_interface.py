@@ -152,7 +152,7 @@ class ComputeFixedSeedsThread(QThread):
             if _ivs != ivs:
                 self.log.emit(f"IVs were wrong! {_ivs} {ivs}")
                 return
-            if _ability != ability:
+            if kernel_constants["TWO_ABILITIES"] == "true" and _ability != ability:
                 self.log.emit(f"Ability was wrong! {_ability} {ability}")
                 return
             if 1 <= personal_info.gender_ratio <= 253 and _gender != gender:
