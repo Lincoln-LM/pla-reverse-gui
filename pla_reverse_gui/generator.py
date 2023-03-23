@@ -68,8 +68,8 @@ def generate(
     while len(queue) != 0:
         item = queue.pop()
         advance = len(item[0]) - initial_advances
+        ko_path, group_seed = item
         if advance >= min_adv:
-            ko_path, group_seed = item
             group_rng.re_init(group_seed)
             for _ in range(ko_path[-1]):
                 generator_rng.re_init(group_rng.next())
