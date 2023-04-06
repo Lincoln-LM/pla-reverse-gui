@@ -2,10 +2,12 @@
 
 import numpy as np
 import numba
+from numba.typed import List as TypedList
 from numba_pokemon_prngs.util import rotate_left_u64
 from numba_pokemon_prngs.xorshift import Xoroshiro128PlusRejection
 from numba_pokemon_prngs.data.encounter.encounter_area_la import EncounterAreaLA, SlotLA
 from numba_pokemon_prngs.enums import LAWeather, LATime
+from numba_progress.numba_atomic import atomic_add
 
 
 @numba.njit()
@@ -28,7 +30,7 @@ def advance_seed(seed: np.uint64, ko_count: int) -> np.uint64:
     return seed0 + seed1
 
 
-@numba.njit()
+@numba.njit(nogil=True)
 def generate(
     seed: np.uint64,
     min_adv: int,
@@ -43,9 +45,14 @@ def generate(
     shiny_filter: np.uint8,
     alpha_filter: np.uint8,
     iv_filters: tuple,
+    parent_data: np.ndarray,
+    results: TypedList,
 ):
-    """Spawner prediction generator"""
-    results = []
+    """
+    Spawner prediction generator
+    parent_data[0]: external uint64 count of how many pokemon have been checked
+    parent_data[1]: external bool (as uint64) flag for if the search should still run (threading)
+    """
 
     # faster to reinit rather than create new objects
     group_rng = Xoroshiro128PlusRejection(0, 0)
@@ -65,8 +72,11 @@ def generate(
         # triple spawners also have the option of catching the third mon
         queue.append(([np.uint8(3)], advance_seed(seed, 3)))
     initial_advances = len(queue[0][0])
-    while len(queue) != 0:
+    # check parent_data[1] flag each item
+    while len(queue) != 0 and parent_data[1] == 0:
         item = queue.pop()
+        # increment progress counter
+        atomic_add(parent_data, 0, 1)
         advance = len(item[0]) - initial_advances
         ko_path, group_seed = item
         if advance >= min_adv:
