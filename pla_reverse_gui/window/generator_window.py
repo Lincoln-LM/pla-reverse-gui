@@ -1,7 +1,9 @@
 """Spawner generator window"""
 
+import time
 import numpy as np
 import numba
+from numba.typed import List as TypedList
 from numba_pokemon_prngs.data.encounter import (
     ENCOUNTER_TABLE_NAMES_LA,
     SPAWNER_NAMES_LA,
@@ -27,6 +29,7 @@ from qtpy.QtWidgets import (
 )
 from qtpy.QtGui import QRegularExpressionValidator
 from qtpy import QtCore
+from qtpy.QtCore import QThread, Signal, Qt
 
 # pylint: enable=no-name-in-module
 
@@ -36,6 +39,7 @@ from .checkable_combobox_widget import CheckableComboBox
 from .range_widget import RangeWidget
 from ..generator import generate
 from ..pla_reverse_main.pla_reverse.size import calc_display_size
+from .eta_progress_bar import ETAProgressBar
 
 
 def labled_widget(
@@ -61,6 +65,7 @@ class GeneratorWindow(QDialog):
         encounter_table: EncounterAreaLA,
     ) -> None:
         super().__init__(parent)
+        self.generator_update_thread = None
         self.spawner = spawner
         self.encounter_table = encounter_table
         self.setWindowTitle(
@@ -179,12 +184,15 @@ class GeneratorWindow(QDialog):
         self.top_layout.addWidget(self.iv_filter_widget)
         self.top_layout.addWidget(self.filter_widget)
 
+        self.progress_bar = ETAProgressBar()
+
         self.generate_button = QPushButton("Generate")
         self.generate_button.clicked.connect(self.generate)
 
         self.result_table = ResultTableWidget()
         self.main_layout.addWidget(self.top_widget)
         self.main_layout.addWidget(self.generate_button)
+        self.main_layout.addWidget(self.progress_bar)
         self.main_layout.addWidget(self.result_table)
         self.resize(
             sum(column[1] for column in self.result_table.COLUMNS),
@@ -219,7 +227,13 @@ class GeneratorWindow(QDialog):
                 len(filtered_species) == 0 or (species, form) in filtered_species,
             )
 
-        rows = generate(
+        total_progress = 1
+        for _ in range(advance_range.stop - 1):
+            total_progress = total_progress * self.spawner.max_spawn_count + 1
+
+        self.progress_bar.setMaximum(total_progress)
+        self.generator_update_thread = GeneratorUpdateThread(
+            self,
             seed,
             advance_range.start,
             advance_range.stop,
@@ -234,8 +248,31 @@ class GeneratorWindow(QDialog):
             alpha_filter,
             iv_filters,
         )
-        rows.sort()
-        for (
+        self.generator_update_thread.progress.connect(self.progress_bar.setValue)
+
+        def cleanup_generate():
+            # self.generator_update_thread.generator_thread.terminate()
+            self.generator_update_thread.requestInterruption()
+            self.generate_button.setText("Generate")
+            self.generate_button.clicked.disconnect(cleanup_generate)
+            self.generate_button.clicked.connect(self.generate)
+
+        self.generate_button.setText("Cancel")
+        self.generate_button.clicked.disconnect(self.generate)
+        self.generate_button.clicked.connect(cleanup_generate)
+
+        self.generator_update_thread.finished.connect(cleanup_generate)
+        self.generator_update_thread.start()
+
+        # TODO: storing encounter info in the table feels hacky
+        self.result_table.encounter_table = self.encounter_table
+        self.result_table.seed = seed
+        self.result_table.weather = self.weather_combobox.currentData()
+        self.result_table.time = self.time_combobox.currentData()
+        self.result_table.species_info = species_info
+
+    def add_result(self, row: tuple):
+        (
             advance,
             path,
             (species, form, is_alpha),
@@ -248,40 +285,121 @@ class GeneratorWindow(QDialog):
             shiny,
             height,
             weight,
-        ) in rows:
-            personal_info = get_personal_info(species, form)
-            personal_index = get_personal_index(species, form)
-            display_size_metric = calc_display_size(
-                personal_index, height, weight, imperial=False
+        ) = row
+        personal_info = get_personal_info(species, form)
+        personal_index = get_personal_index(species, form)
+        display_size_metric = calc_display_size(
+            personal_index, height, weight, imperial=False
+        )
+        display_size_imperial = calc_display_size(
+            personal_index, height, weight, imperial=True
+        )
+        row_i = self.result_table.rowCount()
+        self.result_table.insertRow(row_i)
+        row = (
+            advance,
+            "->".join(str(ko) for ko in path)
+            if self.spawner.max_spawn_count != 1
+            else "N/A",
+            get_name_en(species, form, is_alpha),
+            "Square" if shiny == 2 else "Star" if shiny else "No",
+            "Yes" if is_alpha else "No",
+            NATURES_EN[nature],
+            ABILITIES_EN[
+                personal_info.ability_2 if ability else personal_info.ability_1
+            ],
+            *(str(iv) for iv in ivs),
+            "♂" if gender == 0 else "♀" if gender == 1 else "○",
+            f"{display_size_metric[0]:.02f} m | {display_size_imperial[0][0]:.00f}'{display_size_imperial[0][1]:.00f}\" ({height})",
+            f"{display_size_metric[1]:.02f} kg | {display_size_imperial[1]:.01f} lbs ({weight})",
+        )
+        for j, value in enumerate(row):
+            item = QTableWidgetItem()
+            item.setData(Qt.EditRole, value)
+            self.result_table.setItem(row_i, j, item)
+        # sort by paths first
+        self.result_table.model().sort(1, Qt.AscendingOrder)
+        # then by advances
+        self.result_table.model().sort(0, Qt.AscendingOrder)
+
+    def closeEvent(self, event):
+        self.generator_update_thread.requestInterruption()
+        self.generator_update_thread.wait()
+        event.accept()
+
+
+class GeneratorUpdateThread(QThread):
+    """Thread for checking progress of GeneratorThread"""
+
+    finished = Signal()
+    progress = Signal(int)
+    new_result = Signal(tuple)
+
+    def __init__(self, parent_window: GeneratorWindow, *args) -> None:
+        super().__init__()
+        self.parent_window = parent_window
+        self.parent_data_hook = np.zeros(2, np.uint64)
+        self.generator_thread = GeneratorThread(*args, self.parent_data_hook)
+        self.args = args
+
+    def run(self) -> None:
+        """Thread work"""
+        self.generator_thread.start()
+
+        total_progress = 1
+        for _ in range(self.args[2] - 1):
+            total_progress = total_progress * self.args[3] + 1
+
+        result_count = 0
+        while True:
+            progress = self.parent_data_hook[0]
+            self.parent_data_hook[1] = self.isInterruptionRequested()
+            self.progress.emit(progress)
+            # copy here to dodge thread issues
+            results = list(self.generator_thread.results)
+            if len(results) > result_count:
+                for row in results[result_count:]:
+                    self.parent_window.add_result(row)
+                result_count = len(results)
+            if (
+                progress == total_progress
+                or self.isInterruptionRequested()
+                or not self.generator_thread.isRunning()
+            ):
+                break
+            time.sleep(1)
+
+        self.generator_thread.wait()
+
+
+class GeneratorThread(QThread):
+    """Thread for handling pokemon generation"""
+
+    finished = Signal()
+
+    def __init__(self, *args) -> None:
+        super().__init__()
+        self.args = args
+        self.results = TypedList.empty_list(
+            item_type=numba.typeof(
+                (
+                    0,
+                    [np.uint8(0)],
+                    (np.uint16(0), np.uint8(0), np.bool8(0)),
+                    np.uint32(0),
+                    np.uint32(0),
+                    np.zeros(6, np.uint8),
+                    np.uint8(0),
+                    np.uint8(0),
+                    np.uint8(0),
+                    np.uint8(0),
+                    np.uint8(0),
+                    np.uint8(0),
+                )
             )
-            display_size_imperial = calc_display_size(
-                personal_index, height, weight, imperial=True
-            )
-            row_i = self.result_table.rowCount()
-            self.result_table.insertRow(row_i)
-            row = (
-                str(advance),
-                "->".join(str(ko) for ko in path)
-                if self.spawner.max_spawn_count != 1
-                else "N/A",
-                get_name_en(species, form, is_alpha),
-                "Square" if shiny == 2 else "Star" if shiny else "No",
-                "Yes" if is_alpha else "No",
-                NATURES_EN[nature],
-                ABILITIES_EN[
-                    personal_info.ability_2 if ability else personal_info.ability_1
-                ],
-                *(str(iv) for iv in ivs),
-                "♂" if gender == 0 else "♀" if gender == 1 else "○",
-                f"{display_size_metric[0]:.02f} m | {display_size_imperial[0][0]:.00f}'{display_size_imperial[0][1]:.00f}\" ({height})",
-                f"{display_size_metric[1]:.02f} kg | {display_size_imperial[1]:.01f} lbs ({weight})",
-            )
-            for j, value in enumerate(row):
-                item = QTableWidgetItem(value)
-                self.result_table.setItem(row_i, j, item)
-            # TODO: storing encounter info in the table feels hacky
-            self.result_table.encounter_table = self.encounter_table
-            self.result_table.seed = seed
-            self.result_table.weather = self.weather_combobox.currentData()
-            self.result_table.time = self.time_combobox.currentData()
-            self.result_table.species_info = species_info
+        )
+
+    def run(self) -> None:
+        """Thread work"""
+        generate(*self.args, self.results)
+        self.finished.emit()
