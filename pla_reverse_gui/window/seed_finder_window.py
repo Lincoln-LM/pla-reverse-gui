@@ -75,6 +75,14 @@ class SeedFinderWindow(QDialog):
             f"{SPAWNER_NAMES_LA.get(np.uint64(spawner.spawner_id), '')} - "
             f"{ENCOUNTER_TABLE_NAMES_LA.get(np.uint64(spawner.encounter_table_id), '')}"
         )
+        # TODO: this is a little hacky
+        # these two encounter tables are the only two in the game with forced gender encounters
+        # the only forced gendered mons in the tables are basculin, and they are always forced
+        # this means if the flag is set, and the species selected is a basculin,
+        # the gender ratio is effectively 100% M/F
+        # whether or not its male or female does not actually matter because
+        # the gender rand is skipped either way
+        self.basculin_flag = spawner.encounter_table_id in (0xfd999dca1d543790, 0xfd9ca9ca1d5681cb)
         self.spawner: PlacementSpawner8a = spawner
         self.is_multi_spawner: bool = self.spawner.min_spawn_count > 1
         self.encounter_table: EncounterAreaLA = encounter_table
@@ -110,6 +118,7 @@ class SeedFinderWindow(QDialog):
         def compute_fixed_seeds_1():
             self.worker_thread = ComputeFixedSeedsThread(
                 self.pokemon_1.species_combobox.currentData(),
+                self.basculin_flag,
                 self.pokemon_1.shiny_rolls_combobox.currentData(),
                 tuple(iv_widget.value() for iv_widget in self.pokemon_1.iv_widgets),
                 self.pokemon_1.ability_combobox.currentData(),
@@ -141,6 +150,7 @@ class SeedFinderWindow(QDialog):
                 return
             self.worker_thread = ComputeFixedSeedsThread(
                 self.pokemon_2.species_combobox.currentData(),
+                self.basculin_flag,
                 self.pokemon_2.shiny_rolls_combobox.currentData(),
                 tuple(iv_widget.value() for iv_widget in self.pokemon_2.iv_widgets),
                 self.pokemon_2.ability_combobox.currentData(),
