@@ -1,6 +1,6 @@
 llvmlite==0.39.1
 numba==0.56.4
-numba-pokemon-prngs @ git+https://github.com/Lincoln-LM/numba_pokemon_prngs@2c0a8345b6686b6635bbeb60216a50af405f2a12
+numba-pokemon-prngs @ git+https://github.com/Lincoln-LM/numba_pokemon_prngs@0f25e342c4a7e4b45bd1488ec873fff9d87e6cf7
 numpy==1.23.5
 platformdirs==3.1.1
 pyopencl==2022.3.1
