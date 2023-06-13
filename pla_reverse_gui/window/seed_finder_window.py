@@ -81,7 +81,7 @@ class SeedFinderWindow(QDialog):
         # this means if the flag is set, and the species selected is a basculin,
         # the gender ratio is effectively 100% M/F
         # whether or not its male or female does not actually matter because
-        # thegender rand is skipped either way
+        # the gender rand is skipped either way
         self.basculin_flag = spawner.encounter_table_id in (0xfd999dca1d543790, 0xfd9ca9ca1d5681cb)
         self.spawner: PlacementSpawner8a = spawner
         self.is_multi_spawner: bool = self.spawner.min_spawn_count > 1
