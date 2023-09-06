@@ -21,6 +21,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - run: |
+        sudo apt-get install git
     - name: Package Application for Windows
       uses: JackMcKew/pyinstaller-action-windows@main
       with:
