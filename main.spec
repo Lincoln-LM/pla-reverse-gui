@@ -8,7 +8,11 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[
+    ('pla_reverse_gui/pla_reverse_main/pla_reverse/shaders/fixed_seed_shader.cl', 'pla_reverse_gui/pla_reverse_main/pla_reverse/shaders'),
+    ('pla_reverse_gui/pla_reverse_main/pla_reverse/shaders/generator_seed_shader.cl', 'pla_reverse_gui/pla_reverse_main/pla_reverse/shaders'),
+    ('pla_reverse_gui/pla_reverse_main/pla_reverse/shaders/group_seed_shader.cl', 'pla_reverse_gui/pla_reverse_main/pla_reverse/shaders'),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
