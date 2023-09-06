@@ -22,7 +22,10 @@ jobs:
     - uses: actions/checkout@v3
 
     - run: |
-        sudo apt-get install git
+        git clone https://github.com/Lincoln-LM/numba_pokemon_prngs.git 
+        cd numba_pokemon_prngs
+        git reset --hard 8394988
+        cd ../
     - name: Package Application for Windows
       uses: JackMcKew/pyinstaller-action-windows@main
       with:
