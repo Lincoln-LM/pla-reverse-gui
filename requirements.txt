@@ -1,6 +1,6 @@
 llvmlite==0.39.1
 numba==0.56.4
-file:numba_pokemon_prngs.whl
+.\numba_pokemon_prngs.whl
 numpy==1.23.5
 platformdirs==3.1.1
 pyopencl==2022.3.1
