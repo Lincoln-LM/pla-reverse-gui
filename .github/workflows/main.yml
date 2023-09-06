@@ -17,7 +17,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install poetry
         poetry build --format=wheel
-        cp ./dist/numba_pokemon_prngs-0.1.0-py3-none-any.whl ../numba_pokemon_prngs.whl
+        cp ./dist/numba_pokemon_prngs-0.1.0-py3-none-any.whl ../numba_pokemon_prngs-0.1.0-py3-none-any.whl
         cd ../
     - name: Package Application for Windows
       uses: Lincoln-LM/pyinstaller-action-windows@p310
