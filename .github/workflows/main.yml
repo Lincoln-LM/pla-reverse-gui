@@ -20,7 +20,7 @@ jobs:
         cp ./dist/numba_pokemon_prngs-0.1.0-py3-none-any.whl ../numba_pokemon_prngs.whl
         cd ../
     - name: Package Application for Windows
-      uses: JackMcKew/pyinstaller-action-windows@python3-10-pyinstaller-5-3
+      uses: Lincoln-LM/pyinstaller-action-windows@p310
       with:
         path: ./
 
