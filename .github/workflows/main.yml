@@ -15,6 +15,7 @@ jobs:
         cd numba_pokemon_prngs
         git reset --hard 8394988
         cd ../
+        wget https://github.com/Lincoln-LM/numba_pokemon_prngs/releases/download/latest/numba_pokemon_prngs-0.1.0-py3-none-any.whl -O ./numba_pokemon_prngs.whl
     - name: Package Application for Windows
       uses: JackMcKew/pyinstaller-action-windows@python3-10-pyinstaller-5-3
       with:
