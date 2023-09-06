@@ -22,14 +22,14 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: Package Application for Windows
-      uses: Lincoln-LM/pyinstaller-action-windows@main
+      uses: JackMcKew/pyinstaller-action-windows@main
       with:
         path: ./
 
-    - name: Package Application for Linux
-      uses: Lincoln-LM/pyinstaller-action-linux@main
-      with:
-        path: ./
+    # - name: Package Application for Linux
+    #   uses: Lincoln-LM/pyinstaller-action-linux@main
+    #   with:
+    #     path: ./
 
     - uses: actions/upload-artifact@v3
       with:
@@ -37,8 +37,8 @@ jobs:
         path: ./dist/windows
         tkinter: false
 
-    - uses: actions/upload-artifact@v3
-      with:
-        name: linux-build
-        path: ./dist/linux
-        tkinter: false
+    # - uses: actions/upload-artifact@v3
+    #   with:
+    #     name: linux-build
+    #     path: ./dist/linux
+    #     tkinter: false
