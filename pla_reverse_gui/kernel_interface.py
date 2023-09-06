@@ -34,6 +34,7 @@ class ComputeFixedSeedsThread(QThread):
         """Thread work"""
         (
             species_form,
+            basculin_flag,
             shiny_rolls,
             ivs,
             ability,
@@ -45,6 +46,10 @@ class ComputeFixedSeedsThread(QThread):
             imperial,
         ) = self.args
         personal_info = get_personal_info(*species_form)
+        if basculin_flag and species_form == (550, 2):
+            gender_ratio = 0
+        else:
+            gender_ratio = personal_info.gender_ratio
         self.log.emit("Computing possible sizes....")
         sizes_set = set(
             pla_reverse.size.all_possible_sizes(
@@ -86,7 +91,7 @@ class ComputeFixedSeedsThread(QThread):
                 personal_info.ability_1 != personal_info.ability_2
             ).lower(),
             "ABILITY": ability,
-            "GENDER_RATIO": personal_info.gender_ratio,
+            "GENDER_RATIO": gender_ratio,
             "GENDER": gender,
             "NATURE": nature,
             "SIZES": ",".join(
@@ -97,7 +102,7 @@ class ComputeFixedSeedsThread(QThread):
         expected_seeds = pla_reverse.odds.calc_expected_seeds(
             personal_info.ability_1 != personal_info.ability_2,
             gender,
-            personal_info.gender_ratio,
+            gender_ratio,
             sizes_set,
         )
         self.log.emit(f"{expected_seeds} expected fixed seeds")
@@ -155,7 +160,7 @@ class ComputeFixedSeedsThread(QThread):
             if kernel_constants["TWO_ABILITIES"] == "true" and _ability != ability:
                 self.log.emit(f"Ability was wrong! {_ability} {ability}")
                 return
-            if 1 <= personal_info.gender_ratio <= 253 and _gender != gender:
+            if 1 <= gender_ratio <= 253 and _gender != gender:
                 self.log.emit(f"Gender was wrong! {_gender} {gender}")
                 return
             if _nature != nature:

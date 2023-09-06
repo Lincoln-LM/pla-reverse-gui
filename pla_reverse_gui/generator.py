@@ -133,7 +133,9 @@ def generate(
                     continue
                 ability = fixed_rng.next_rand(2)
                 gender = 0 if gender_ratio == 0 else 1 if gender_ratio == 254 else 2
-                if 1 <= gender_ratio < 254:
+                if slot.gender != 255:
+                    gender = slot.gender
+                elif 1 <= gender_ratio < 254:
                     gender = (fixed_rng.next_rand(253) + 1) < gender_ratio
                 if len(gender_filter) != 0 and gender not in gender_filter:
                     continue
