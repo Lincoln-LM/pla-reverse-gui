@@ -16,7 +16,7 @@ jobs:
         git reset --hard 8394988
         cd ../
     - name: Package Application for Windows
-      uses: JackMcKew/pyinstaller-action-windows@main
+      uses: JackMcKew/pyinstaller-action-windows@python3-10-pyinstaller-5-3
       with:
         path: ./
 
