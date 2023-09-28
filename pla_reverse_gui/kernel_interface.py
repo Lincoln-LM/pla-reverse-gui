@@ -34,7 +34,7 @@ class ComputeFixedSeedsThread(QThread):
         """Thread work"""
         (
             species_form,
-            basculin_flag,
+            basculin_gender,
             shiny_rolls,
             ivs,
             ability,
@@ -46,8 +46,8 @@ class ComputeFixedSeedsThread(QThread):
             imperial,
         ) = self.args
         personal_info = get_personal_info(*species_form)
-        if basculin_flag and species_form == (550, 2):
-            gender_ratio = 0
+        if basculin_gender is not None and species_form == (550, 2):
+            gender_ratio = (0, 254)[basculin_gender]
         else:
             gender_ratio = personal_info.gender_ratio
         self.log.emit("Computing possible sizes....")
