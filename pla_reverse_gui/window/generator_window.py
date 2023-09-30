@@ -330,7 +330,7 @@ class GeneratorWindow(QDialog):
     def closeEvent(self, event):
         if self.generator_update_thread is not None:
             self.generator_update_thread.requestInterruption()
-        self.generator_update_thread.wait()
+            self.generator_update_thread.wait()
         event.accept()
 
 

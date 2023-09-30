@@ -33,6 +33,7 @@ class ComputeFixedSeedsThread(QThread):
     def run(self):
         """Thread work"""
         (
+            steps,
             species_form,
             basculin_gender,
             shiny_rolls,
@@ -129,14 +130,27 @@ class ComputeFixedSeedsThread(QThread):
         cl.enqueue_copy(queue, device_results, host_results)
         cl.enqueue_copy(queue, device_count, host_count)
 
-        program.find_fixed_seeds(
-            queue, (32**2, 32**2, 32**2), None, device_count, device_results
-        )
+        self.log.emit("Processing....")
+        kernel = program.find_fixed_seeds_split
+        total_dim = 32**2
+        self.init_progress_bar.emit(total_dim)
+        step_size = total_dim // steps
+        i = 0
+        # TODO: is this the best way to split a 3d search?
+        for i in range(0, total_dim, step_size):
+            x_size = min(step_size, total_dim - i)
+            kernel(
+                queue,
+                (x_size, total_dim, total_dim),
+                None,
+                device_count,
+                device_results,
+                np.uint32(i)
+            ).wait()
+            self.progress.emit(i)
 
         host_results = np.empty_like(host_results)
         host_count = np.empty_like(host_count)
-
-        self.log.emit("Processing....")
 
         cl.enqueue_copy(queue, host_results, device_results)
         cl.enqueue_copy(queue, host_count, device_count)
@@ -192,8 +206,9 @@ class ComputeGeneratorSeedsThread(QThread):
     init_progress_bar = Signal(int)
     progress = Signal(int)
 
-    def __init__(self, fixed_seeds) -> None:
+    def __init__(self, steps, fixed_seeds) -> None:
         super().__init__()
+        self.steps = steps
         self.fixed_seeds = fixed_seeds
 
     def run(self):
@@ -202,7 +217,7 @@ class ComputeGeneratorSeedsThread(QThread):
         queue = cl.CommandQueue(context)
 
         total_seeds = len(self.fixed_seeds)
-        step_size = total_seeds // 100
+        step_size = total_seeds // self.steps
 
         self.log.emit("Building kernel....")
         program = cl.Program(

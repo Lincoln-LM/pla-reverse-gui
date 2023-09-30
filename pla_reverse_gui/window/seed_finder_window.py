@@ -22,6 +22,7 @@ from qtpy.QtCore import Qt
 
 from .pokemon_info_widget import PokemonInfoWidget
 from .eta_progress_bar import ETAProgressBar
+from .log_spin_box_widget import LogSpinBox
 from ..kernel_interface import (
     ComputeFixedSeedsThread,
     ComputeGeneratorSeedsThread,
@@ -75,6 +76,9 @@ class SeedFinderWindow(QDialog):
             f"{SPAWNER_NAMES_LA.get(np.uint64(spawner.spawner_id), '')} - "
             f"{ENCOUNTER_TABLE_NAMES_LA.get(np.uint64(spawner.encounter_table_id), '')}"
         )
+        self.fixed_seed_steps = LogSpinBox(2, 0, 4, "Fixed Seed Steps")
+        self.generator_seed_steps = LogSpinBox(2, 0, 8, "Generator Seed Steps")
+        self.generator_seed_steps.spin_box.setValue(128)
         # TODO: this is a little hacky
         # these two encounter tables are the only two in the game with forced gender encounters
         # the only forced gendered mons in the tables are basculin, and they are always forced
@@ -105,6 +109,8 @@ class SeedFinderWindow(QDialog):
 
         self.sub_layout.addWidget(self.pokemon_1)
         self.sub_layout.addWidget(self.pokemon_2)
+        self.main_layout.addWidget(self.fixed_seed_steps)
+        self.main_layout.addWidget(self.generator_seed_steps)
         self.main_layout.addWidget(self.sub_widget)
         self.main_layout.addWidget(self.compute_seed_button)
 
@@ -118,6 +124,7 @@ class SeedFinderWindow(QDialog):
 
         def compute_fixed_seeds_1():
             self.worker_thread = ComputeFixedSeedsThread(
+                self.fixed_seed_steps.spin_box.value(),
                 self.pokemon_1.species_combobox.currentData(),
                 self.basculin_gender,
                 self.pokemon_1.shiny_rolls_combobox.currentData(),
@@ -150,6 +157,7 @@ class SeedFinderWindow(QDialog):
                 self.console_window.log("Fixed seed search unsuccessful.")
                 return
             self.worker_thread = ComputeFixedSeedsThread(
+                self.fixed_seed_steps.spin_box.value(),
                 self.pokemon_2.species_combobox.currentData(),
                 self.basculin_gender,
                 self.pokemon_2.shiny_rolls_combobox.currentData(),
@@ -181,7 +189,10 @@ class SeedFinderWindow(QDialog):
             if self.results_2 is None:
                 self.console_window.log("Fixed seed search unsuccessful.")
                 return
-            self.worker_thread = ComputeGeneratorSeedsThread(self.results_1)
+            self.worker_thread = ComputeGeneratorSeedsThread(
+                self.generator_seed_steps.spin_box.value(),
+                self.results_1,
+            )
             self.worker_thread.log.connect(self.console_window.log)
             self.worker_thread.finished.connect(compute_group_seed)
 
