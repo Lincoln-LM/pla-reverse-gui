@@ -126,6 +126,9 @@ class ComputeFixedSeedsThread(QThread):
         )
         device_count = cl.Buffer(context, cl.mem_flags.READ_WRITE, host_count.nbytes)
 
+        cl.enqueue_copy(queue, device_results, host_results)
+        cl.enqueue_copy(queue, device_count, host_count)
+
         program.find_fixed_seeds(
             queue, (32**2, 32**2, 32**2), None, device_count, device_results
         )
