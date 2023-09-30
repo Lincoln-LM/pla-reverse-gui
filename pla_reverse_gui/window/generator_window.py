@@ -256,7 +256,8 @@ class GeneratorWindow(QDialog):
 
         def cleanup_generate():
             # self.generator_update_thread.generator_thread.terminate()
-            self.generator_update_thread.requestInterruption()
+            if self.generator_update_thread is not None:
+                self.generator_update_thread.requestInterruption()
             self.generate_button.setText("Generate")
             self.generate_button.clicked.disconnect(cleanup_generate)
             self.generate_button.clicked.connect(self.generate)
@@ -327,7 +328,8 @@ class GeneratorWindow(QDialog):
         self.result_table.model().sort(0, Qt.AscendingOrder)
 
     def closeEvent(self, event):
-        self.generator_update_thread.requestInterruption()
+        if self.generator_update_thread is not None:
+            self.generator_update_thread.requestInterruption()
         self.generator_update_thread.wait()
         event.accept()
 
