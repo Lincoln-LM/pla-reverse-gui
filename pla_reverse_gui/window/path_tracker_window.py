@@ -64,7 +64,7 @@ class PathTrackerWindow(QDialog):
     ) -> None:
         super().__init__(parent)
 
-        self.setWindowTitle("Path Tracker " + ("->".join(str(x) for x in path)))
+        self.setWindowTitle("Path Tracker " + ("->".join(map(str, path))))
         self.main_layout = QVBoxLayout(self)
         self.path_table = PathTableWidget()
         self.main_layout.addWidget(self.path_table)
@@ -80,7 +80,7 @@ class PathTrackerWindow(QDialog):
                 generator_rng = Xoroshiro128PlusRejection(generator_seed)
                 group_rng.next()
                 slot = encounter_table.calc_slot(
-                    generator_rng.next() / 2**64, np.int64(time), np.int64(weather)
+                    generator_rng.next() / 2 ** 64, np.int64(time), np.int64(weather)
                 )
                 gender_ratio, shiny_rolls, _ = species_info[(slot.species, slot.form)]
                 fixed_rng = Xoroshiro128PlusRejection(np.uint64(generator_rng.next()))

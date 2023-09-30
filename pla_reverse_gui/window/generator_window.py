@@ -69,8 +69,8 @@ class GeneratorWindow(QDialog):
         self.spawner = spawner
         self.encounter_table = encounter_table
         self.basculin_gender = {
-            0xfd9ca9ca1d5681cb: 0, # M
-            0xfd999dca1d543790: 1, # F
+            0xFD9CA9CA1D5681CB: 0,  # M
+            0xFD999DCA1D543790: 1,  # F
         }.get(spawner.encounter_table_id, None)
         self.setWindowTitle(
             "Generator "
@@ -226,7 +226,9 @@ class GeneratorWindow(QDialog):
         for species, form in self.added_species:
             personal_info = get_personal_info(species, form)
             species_info[(species, form)] = (
-                self.basculin_gender if (species, form) == (550, 2) and self.basculin_gender is not None else personal_info.gender_ratio,
+                self.basculin_gender
+                if (species, form) == (550, 2) and self.basculin_gender is not None
+                else personal_info.gender_ratio,
                 self.shiny_rolls_comboboxes[(species, form)].currentData(),
                 len(filtered_species) == 0 or (species, form) in filtered_species,
             )

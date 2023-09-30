@@ -132,7 +132,7 @@ class ComputeFixedSeedsThread(QThread):
 
         self.log.emit("Processing....")
         kernel = program.find_fixed_seeds_split
-        total_dim = 32**2
+        total_dim = 32 ** 2
         self.init_progress_bar.emit(total_dim)
         step_size = total_dim // steps
         i = 0
@@ -145,7 +145,7 @@ class ComputeFixedSeedsThread(QThread):
                 None,
                 device_count,
                 device_results,
-                np.uint32(i)
+                np.uint32(i),
             ).wait()
             self.progress.emit(i)
 
