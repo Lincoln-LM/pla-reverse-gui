@@ -123,12 +123,15 @@ class ComputeFixedSeedsThread(QThread):
         host_count = np.zeros(1, np.int32)
 
         device_results = cl.Buffer(
-            context, cl.mem_flags.READ_WRITE, host_results.nbytes
+            context,
+            cl.mem_flags.WRITE_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=host_results,
         )
-        device_count = cl.Buffer(context, cl.mem_flags.READ_WRITE, host_count.nbytes)
-
-        cl.enqueue_copy(queue, device_results, host_results)
-        cl.enqueue_copy(queue, device_count, host_count)
+        device_count = cl.Buffer(
+            context,
+            cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=host_count,
+        )
 
         self.log.emit("Processing....")
         kernel = program.find_fixed_seeds_split
@@ -235,17 +238,26 @@ class ComputeGeneratorSeedsThread(QThread):
                 if (i >> k) & 1:
                     host_slices[i] |= np.uint64(1) << np.uint64(k * 8)
 
-        device_count = cl.Buffer(context, cl.mem_flags.READ_WRITE, host_count.nbytes)
-        device_results = cl.Buffer(
-            context, cl.mem_flags.WRITE_ONLY, host_results.nbytes
+        device_count = cl.Buffer(
+            context,
+            cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=host_count,
         )
-        device_slices = cl.Buffer(context, cl.mem_flags.READ_ONLY, host_slices.nbytes)
-        device_seeds = cl.Buffer(context, cl.mem_flags.READ_WRITE, host_seeds.nbytes)
-
-        cl.enqueue_copy(queue, device_count, host_count)
-        cl.enqueue_copy(queue, device_results, host_results)
-        cl.enqueue_copy(queue, device_slices, host_slices)
-        cl.enqueue_copy(queue, device_seeds, host_seeds)
+        device_results = cl.Buffer(
+            context,
+            cl.mem_flags.WRITE_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=host_results,
+        )
+        device_slices = cl.Buffer(
+            context,
+            cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=host_slices,
+        )
+        device_seeds = cl.Buffer(
+            context,
+            cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=host_seeds,
+        )
 
         self.log.emit("Processing....")
         kernel = program.find_generator_seeds
@@ -306,19 +318,21 @@ class ComputeGroupSeedThread(QThread):
         host_fixed_seeds = np.sort(self.fixed_seeds_2)
 
         device_results = cl.Buffer(
-            context, cl.mem_flags.WRITE_ONLY, host_results.nbytes
+            context,
+            cl.mem_flags.WRITE_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=host_results,
         )
         device_generator_seeds = cl.Buffer(
-            context, cl.mem_flags.READ_ONLY, host_generator_seeds.nbytes
+            context,
+            cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=host_generator_seeds,
         )
         device_fixed_seeds = cl.Buffer(
-            context, cl.mem_flags.READ_ONLY, host_fixed_seeds.nbytes
+            context,
+            cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=host_fixed_seeds,
         )
         self.log.emit("Processing....")
-
-        cl.enqueue_copy(queue, device_results, host_results)
-        cl.enqueue_copy(queue, device_generator_seeds, host_generator_seeds)
-        cl.enqueue_copy(queue, device_fixed_seeds, host_fixed_seeds)
 
         kernel = program.find_group_seed
         kernel(
