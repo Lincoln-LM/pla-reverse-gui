@@ -165,10 +165,16 @@ class GeneratorWindow(QDialog):
         self.shiny_filter.addItem("Star/Square", 1 | 2)
         self.alpha_filter = QCheckBox("Alpha Only")
 
+        self.size_filter, size_widget = labled_widget("Height/Scale Filter:", CheckableComboBox)
+        self.size_filter: CheckableComboBox
+        self.size_filter.add_checked_item("XXXS (0)", 0)
+        self.size_filter.add_checked_item("XXXL (255)", 255)
+
         self.filter_layout.addWidget(species_widget)
         self.filter_layout.addWidget(gender_widget)
         self.filter_layout.addWidget(nature_widget)
         self.filter_layout.addWidget(shiny_widget)
+        self.filter_layout.addWidget(size_widget)
         self.filter_layout.addWidget(self.alpha_filter)
 
         self.iv_filter_widget = QWidget()
@@ -216,6 +222,7 @@ class GeneratorWindow(QDialog):
         filtered_species = self.species_filter.get_checked_values()
         filtered_genders = self.gender_filter.get_checked_values()
         filtered_natures = self.nature_filter.get_checked_values()
+        filtered_sizes = self.size_filter.get_checked_values()
         shiny_filter = self.shiny_filter.currentData() or 15
         alpha_filter = self.alpha_filter.checkState() == QtCore.Qt.Checked
         iv_filters = tuple(
@@ -250,6 +257,7 @@ class GeneratorWindow(QDialog):
             species_info,
             filtered_genders,
             filtered_natures,
+            filtered_sizes,
             shiny_filter,
             alpha_filter,
             iv_filters,

@@ -42,6 +42,7 @@ def generate(
     species_info: dict[tuple[int, int], tuple[int, int, bool]],
     gender_filter: tuple,
     nature_filter: tuple,
+    size_filter: tuple,
     shiny_filter: np.uint8,
     alpha_filter: np.uint8,
     iv_filters: tuple,
@@ -147,6 +148,8 @@ def generate(
                 else:
                     height = fixed_rng.next_rand(0x81) + fixed_rng.next_rand(0x80)
                     weight = fixed_rng.next_rand(0x81) + fixed_rng.next_rand(0x80)
+                if len(size_filter) != 0 and height not in size_filter:
+                    continue
                 pokemon = (
                     advance,
                     ko_path,
