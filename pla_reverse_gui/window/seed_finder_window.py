@@ -76,7 +76,7 @@ class SeedFinderWindow(QDialog):
             f"{SPAWNER_NAMES_LA.get(np.uint64(spawner.spawner_id), '')} - "
             f"{ENCOUNTER_TABLE_NAMES_LA.get(np.uint64(spawner.encounter_table_id), '')}"
         )
-        self.fixed_seed_steps = LogSpinBox(2, 0, 4, "Fixed Seed Steps")
+        self.fixed_seed_steps = LogSpinBox(2, 0, 10, "Fixed Seed Steps")
         self.generator_seed_steps = LogSpinBox(2, 0, 8, "Generator Seed Steps")
         self.generator_seed_steps.spin_box.setValue(128)
         # TODO: this is a little hacky
