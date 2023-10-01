@@ -1,10 +1,9 @@
-name: Build Executable
+name: Freeze Executable
 
 on:
   push:
   pull_request:
   workflow_dispatch:
-
 
 jobs:
   build:
@@ -29,15 +28,13 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install -r requirements.txt
-      - uses: Nuitka/Nuitka-Action@main
-        with:
-          script-name: main.py
-          onefile: false
-          
-      - name: "Upload Artifacts"
+          pip install cx_freeze
+      - name: Freeze
+        run: |
+          cxfreeze main.py --target-dir dist --target-name=pla_reverse_gui -c
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: ${{ runner.os }} Build
           path: |
-            build/*
-            build/*
+            dist/*
