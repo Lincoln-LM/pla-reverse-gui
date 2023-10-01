@@ -32,12 +32,12 @@ jobs:
       - uses: Nuitka/Nuitka-Action@main
         with:
           script-name: main.py
-          # onefile: true
+          onefile: false
           
       - name: "Upload Artifacts"
         uses: actions/upload-artifact@v3
         with:
           name: ${{ runner.os }} Build
           path: |
-            build/*.exe
-            build/*.bin
+            build/*
+            build/*
