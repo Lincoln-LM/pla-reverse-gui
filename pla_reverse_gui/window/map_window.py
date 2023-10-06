@@ -25,6 +25,7 @@ from qtpy.QtWidgets import (
 from ..util import get_name_en
 from .seed_finder_window import SeedFinderWindow
 from .generator_window import GeneratorWindow
+from .checkable_combobox_widget import CheckableComboBox
 
 
 class MapWindow(QWidget):
@@ -59,6 +60,14 @@ class MapWindow(QWidget):
         self.options_widget = QWidget()
         self.options_layout = QVBoxLayout(self.options_widget)
 
+        self.marker_filter = CheckableComboBox()
+        self.marker_filter.add_checked_item("Single Spawners", 1, True)
+        self.marker_filter.add_checked_item("Multi Spawners", 2, True)
+        self.marker_filter.add_checked_item("Mass Outbreak Spawners", 4)
+        self.marker_filter.add_checked_item("Massive Mass Outbreak Spawners", 8)
+        self.marker_filter.add_checked_item("Unusable Spawners", 16)
+        self.marker_filter.changed.connect(self.update_mark_filter)
+
         self.location_combobox = QComboBox()
         self.location_combobox.currentIndexChanged.connect(self.select_map)
         for map_id, name in self.MAP_NAMES.items():
@@ -71,6 +80,7 @@ class MapWindow(QWidget):
         self.generator_button = QPushButton("Open Generator")
         self.generator_button.clicked.connect(self.open_generator)
 
+        self.options_layout.addWidget(self.marker_filter)
         self.options_layout.addWidget(self.location_combobox)
         self.options_layout.addWidget(self.spawner_combobox)
         self.options_layout.addWidget(self.spawner_summary)
@@ -140,27 +150,61 @@ class MapWindow(QWidget):
             },
         )
         self.multi_spawner_icon.addTo(self.map)
+
+        self.mass_outbreak_marker_icon = L.icon(
+            "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png",
+            {
+                "shadowUrl": "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+                "iconSize": [25, 41],
+                "iconAnchor": [12, 41],
+                "popupAnchor": [1, -34],
+                "shadowSize": [41, 41],
+            },
+        )
+        self.mass_outbreak_marker_icon.addTo(self.map)
+
+        self.massive_mass_outbreak_marker_icon = L.icon(
+            "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png",
+            {
+                "shadowUrl": "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+                "iconSize": [25, 41],
+                "iconAnchor": [12, 41],
+                "popupAnchor": [1, -34],
+                "shadowSize": [41, 41],
+            },
+        )
+        self.massive_mass_outbreak_marker_icon.addTo(self.map)
+
         self.all_markers: dict[LAArea, list[L.marker]] = {}
         self.marker_icons: dict[L.marker, L.icon] = {}
         for map_id in self.MAP_NAMES.keys():
             marker_list = []
             for spawner in SPAWNER_INFORMATION_LA[map_id].spawners:
-                if spawner.is_mass_outbreak:
-                    continue
+                mass_outbreak = spawner.is_mass_outbreak
+                massive_mass_outbreak = mass_outbreak and (
+                    np.uint64(spawner.encounter_table_id)
+                    not in ENCOUNTER_INFORMATION_LA[map_id]
+                )
                 single_spawner = (
                     spawner.min_spawn_count == spawner.max_spawn_count
                     and spawner.min_spawn_count == 1
+                    and not mass_outbreak
                 )
                 multi_spawner = (
                     spawner.min_spawn_count == spawner.max_spawn_count
                     and spawner.min_spawn_count != 1
+                    and not mass_outbreak
                 )
                 coords = spawner.coordinates.as_tuple()
                 marker = L.marker([coords[2] * -0.5, coords[0] * 0.5])
                 marker.click.connect(self.marker_onclick)
                 marker_list.append(marker)
                 self.marker_icons[marker] = (
-                    self.single_spawner_icon
+                    self.massive_mass_outbreak_marker_icon
+                    if massive_mass_outbreak
+                    else self.mass_outbreak_marker_icon
+                    if mass_outbreak
+                    else self.single_spawner_icon
                     if single_spawner
                     else self.multi_spawner_icon
                     if multi_spawner
@@ -168,6 +212,49 @@ class MapWindow(QWidget):
                 )
             self.all_markers[map_id] = marker_list
         self.rendered_markers = []
+
+    def update_mark_filter(self, _: int = None) -> None:
+        """Callback to be run when the mark filter combobox is changed"""
+        mark_filter = self.marker_filter.get_checked_values() or (1, 2, 4, 8, 16)
+        for rendered_marker in self.rendered_markers:
+            # unrender
+            self.map.runJavaScriptForMap(
+                f"map.removeLayer({rendered_marker.layerName})"
+            )
+        for i, marker in enumerate(self.rendered_markers):
+            spawner = self.spawner_information[i]
+
+            mass_outbreak = spawner.is_mass_outbreak
+            massive_mass_outbreak = mass_outbreak and (
+                np.uint64(spawner.encounter_table_id)
+                not in ENCOUNTER_INFORMATION_LA[self.location_combobox.currentData()]
+            )
+            single_spawner = (
+                spawner.min_spawn_count == spawner.max_spawn_count
+                and spawner.min_spawn_count == 1
+                and not mass_outbreak
+            )
+            multi_spawner = (
+                spawner.min_spawn_count == spawner.max_spawn_count
+                and spawner.min_spawn_count != 1
+                and not mass_outbreak
+            )
+
+            if single_spawner and 1 not in mark_filter:
+                continue
+            if multi_spawner and 2 not in mark_filter:
+                continue
+            if mass_outbreak and not massive_mass_outbreak and 4 not in mark_filter:
+                continue
+            if massive_mass_outbreak and 8 not in mark_filter:
+                continue
+            if (
+                not (single_spawner or multi_spawner or mass_outbreak)
+                and 16 not in mark_filter
+            ):
+                continue
+            # render
+            self.map.runJavaScriptForMap(f"map.addLayer({marker.layerName})")
 
     def select_map(self, index: int) -> None:
         """Callback to be run when the map combobox is changed"""
@@ -219,14 +306,13 @@ class MapWindow(QWidget):
         self.spawner_combobox.clear()
 
         for spawner in self.spawner_information:
-            if spawner.is_mass_outbreak:
-                continue
             self.spawner_combobox.addItem(
                 f"{SPAWNER_NAMES_LA.get(spawner.spawner_id, '')} - 0x{spawner.spawner_id:016X}",
                 spawner,
             )
 
         self.select_marker(self.rendered_markers[0])
+        self.update_mark_filter()
 
     def marker_onclick(self, options: dict) -> None:
         """Callback for when a marker is clicked"""
@@ -266,6 +352,9 @@ class MapWindow(QWidget):
                         np.uint64(spawner.encounter_table_id)
                     ].slots.view(np.recarray)
                 )
+                if np.uint64(spawner.encounter_table_id)
+                in ENCOUNTER_INFORMATION_LA[self.location_combobox.currentData()]
+                else "Encounter table not found."
             )
         # select new marker
         self.map.runJavaScriptForMap(

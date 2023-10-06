@@ -165,7 +165,9 @@ class GeneratorWindow(QDialog):
         self.shiny_filter.addItem("Star/Square", 1 | 2)
         self.alpha_filter = QCheckBox("Alpha Only")
 
-        self.size_filter, size_widget = labled_widget("Height/Scale Filter:", CheckableComboBox)
+        self.size_filter, size_widget = labled_widget(
+            "Height/Scale Filter:", CheckableComboBox
+        )
         self.size_filter: CheckableComboBox
         self.size_filter.add_checked_item("XXXS (0)", 0)
         self.size_filter.add_checked_item("XXXL (255)", 255)

@@ -13,6 +13,8 @@ from qtpy.QtGui import QStandardItemModel
 class CheckableComboBox(QComboBox):
     """Checkable ComboBox"""
 
+    changed = QtCore.Signal(int)
+
     def __init__(self):
         super().__init__()
         self.setModel(QStandardItemModel(self))
@@ -36,11 +38,11 @@ class CheckableComboBox(QComboBox):
         else:
             self.locked_text = text
 
-    def add_checked_item(self, text: str, value) -> None:
+    def add_checked_item(self, text: str, value, checked: bool = False) -> None:
         """Add a checked item to the combobox"""
         self.addItem(text, value)
         item = self.model().item(self.item_count, 0)
-        item.setCheckState(QtCore.Qt.Unchecked)
+        item.setCheckState(QtCore.Qt.Checked if checked else QtCore.Qt.Unchecked)
         self.item_count += 1
         self.setMinimumWidth(self.minimumSizeHint().width() + 50)
 
@@ -59,6 +61,7 @@ class CheckableComboBox(QComboBox):
             if item.checkState() == QtCore.Qt.Checked
             else QtCore.Qt.Checked
         )
+        self.changed.emit(index)
 
     def handle_model_data_changed(self):
         """Check an item when clicked"""
