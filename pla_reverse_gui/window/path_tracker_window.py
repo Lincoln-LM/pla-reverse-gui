@@ -57,14 +57,14 @@ class PathTrackerWindow(QDialog):
         parent: QWidget,
         encounter_table: EncounterAreaLA,
         seed: np.uint64,
-        path: tuple,
+        path: tuple[int],
         weather: LAWeather,
         time: LATime,
         species_info: dict[tuple[int, int], tuple[int, int, bool]],
     ) -> None:
         super().__init__(parent)
 
-        self.setWindowTitle("Path Tracker " + ("->".join(map(str, path))))
+        self.setWindowTitle("Path Tracker " + ("->".join(map(str, path[1:]))))
         self.main_layout = QVBoxLayout(self)
         self.path_table = PathTableWidget()
         self.main_layout.addWidget(self.path_table)
@@ -73,8 +73,8 @@ class PathTrackerWindow(QDialog):
             self.height(),
         )
         group_rng = Xoroshiro128PlusRejection(seed)
-        for advance, spawn_count in enumerate((path[0],) + path, start=-1):
-            current_path = path[: advance + 1]
+        for advance, spawn_count in enumerate(path, start=-1):
+            current_path = path[1 : advance + 2]
             for _ in range(spawn_count):
                 generator_seed = np.uint64(group_rng.next())
                 generator_rng = Xoroshiro128PlusRejection(generator_seed)
