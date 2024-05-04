@@ -240,9 +240,8 @@ class GeneratorWindow(QDialog):
                 len(filtered_species) == 0 or (species, form) in filtered_species,
             )
 
-        total_progress = 1
-        for _ in range(advance_range.stop - 1):
-            total_progress = total_progress * self.spawner.max_spawn_count + 1
+        initial_value = 1 if self.spawner.max_spawn_count != 3 else 2
+        total_progress = initial_value * (1 - self.spawner.max_spawn_count**advance_range.stop) // (1 - self.spawner.max_spawn_count)
 
         self.progress_bar.setMaximum(total_progress)
         self.generator_update_thread = GeneratorUpdateThread(
@@ -362,12 +361,16 @@ class GeneratorUpdateThread(QThread):
         """Thread work"""
         self.generator_thread.start()
 
-        total_progress = 1
-        for _ in range(self.args[2] - 1):
-            total_progress = total_progress * self.args[3] + 1
+        initial_value = 1 if self.args[3] != 3 else 2
+        total_progress = initial_value * (1 - self.args[3]**self.args[2]) // (1 - self.args[3])
 
         result_count = 0
         while True:
+            # checking here ensures final copied data is from after the thread finishes
+            thread_finished = (
+                self.isInterruptionRequested()
+                or not self.generator_thread.isRunning()
+            )
             progress = self.parent_data_hook[0]
             self.parent_data_hook[1] = self.isInterruptionRequested()
             self.progress.emit(progress)
@@ -379,8 +382,7 @@ class GeneratorUpdateThread(QThread):
                 result_count = len(results)
             if (
                 progress == total_progress
-                or self.isInterruptionRequested()
-                or not self.generator_thread.isRunning()
+                or thread_finished
             ):
                 break
             time.sleep(1)
