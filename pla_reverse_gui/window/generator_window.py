@@ -92,7 +92,8 @@ class GeneratorWindow(QDialog):
         self.weather_combobox, weather_widget = labled_widget("Weather:", QComboBox)
         self.weather_combobox: QComboBox
         for weather in LAWeather:
-            self.weather_combobox.addItem(weather.name.title(), weather)
+            if weather != LAWeather.NONE:
+                self.weather_combobox.addItem(weather.name.title(), weather)
         self.time_combobox, time_widget = labled_widget("Time:", QComboBox)
         self.time_combobox: QComboBox
         for time in LATime:
