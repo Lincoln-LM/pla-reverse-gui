@@ -42,6 +42,13 @@ from ..pla_reverse_main.pla_reverse.size import calc_display_size
 from .eta_progress_bar import ETAProgressBar
 
 
+def compute_result_count(max_spawn_count: int, max_path_length: int) -> int:
+    """Calculate the total amount of results to be generated for a given spawner and max path length"""
+    if max_spawn_count == 1:
+        return max_path_length
+    initial_value = 1 if max_spawn_count != 3 else 2
+    return initial_value * (1 - max_spawn_count**max_path_length) // (1 - max_spawn_count)
+
 def labled_widget(
     label: str, widget_constructor: QWidget, *args, **kwargs
 ) -> tuple[QWidget, QWidget]:
@@ -241,8 +248,7 @@ class GeneratorWindow(QDialog):
                 len(filtered_species) == 0 or (species, form) in filtered_species,
             )
 
-        initial_value = 1 if self.spawner.max_spawn_count != 3 else 2
-        total_progress = initial_value * (1 - self.spawner.max_spawn_count**advance_range.stop) // (1 - self.spawner.max_spawn_count)
+        total_progress = compute_result_count(self.spawner.max_spawn_count, advance_range.stop)
 
         self.progress_bar.setMaximum(total_progress)
         self.generator_update_thread = GeneratorUpdateThread(
@@ -363,8 +369,7 @@ class GeneratorUpdateThread(QThread):
         """Thread work"""
         self.generator_thread.start()
 
-        initial_value = 1 if self.args[3] != 3 else 2
-        total_progress = initial_value * (1 - self.args[3]**self.args[2]) // (1 - self.args[3])
+        total_progress = compute_result_count(self.args[3], self.args[2])
 
         result_count = 0
         while True:
