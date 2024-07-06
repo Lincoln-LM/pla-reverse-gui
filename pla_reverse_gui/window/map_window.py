@@ -25,7 +25,7 @@ from qtpy.QtWidgets import (
 from ..util import get_name_en
 from .seed_finder_window import SeedFinderWindow
 from .generator_window import GeneratorWindow
-
+from PySide6.QtWebEngineCore import QWebEngineSettings
 
 class MapWindow(QWidget):
     """QWidget window for main map display"""
@@ -39,6 +39,7 @@ class MapWindow(QWidget):
     }
 
     def __init__(self):
+        # Setting up the widgets and layout
         super().__init__()
         self.setWindowTitle("PLA Seed Finder")
         self.selected_marker = None
@@ -53,6 +54,7 @@ class MapWindow(QWidget):
     def setup_widgets(self) -> None:
         """Draw the widgets and main layout of the window"""
         self.map_widget = MapWidget()
+        self.map_widget.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
 
         self.main_layout = QHBoxLayout()
 

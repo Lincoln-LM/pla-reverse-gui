@@ -1,13 +1,13 @@
-llvmlite==0.39.1
-numba==0.56.4
-numba-pokemon-prngs @ git+https://github.com/Lincoln-LM/numba_pokemon_prngs@fece99b92e04d0429a463227053f6949ab629826
+llvmlite==0.40.1
+numba==0.57.1
+numba-pokemon-prngs @ git+https://github.com/zakski/numba_pokemon_prngs
 numpy==1.23.5
 platformdirs==3.1.1
 pyopencl==2022.3.1
-PySide6==6.2.3 # needs to be lower than latest for pyqtlet2
+PySide6==6.5.3  # needs to be lower than latest for pyqtlet2
 pytools==2022.1.14
 QtPy==2.3.1
-pyqtlet2[PySide6]
+pyqtlet2[PySide6]==0.9.3
 QDarkStyle==3.1
 tqdm==4.65.0
 typing-extensions==4.5.0
