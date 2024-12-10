@@ -1,7 +1,7 @@
 # pla-reverse-gui
 PySide6-based GUI for Seed Cracking and RNG w/o CFW assistance in Pokemon: Legends Arceus
 
-## Requires 3.9.6 <= python < 3.11
+## Requires 3.9.6 <= python < 3.13
 
 
 ![](./screenshots/map.png)

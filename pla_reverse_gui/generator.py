@@ -68,10 +68,10 @@ def generate(
         )
     elif spawn_count > 1:
         # triple/double spawners always start by catching the two mons there
-        queue.append(([np.uint8(2)], advance_seed(seed, 2)))
+        queue.append(([np.uint8(2)], advance_seed(seed, spawn_count)))
     if spawn_count == 3:
         # triple spawners also have the option of catching the third mon
-        queue.append(([np.uint8(3)], advance_seed(seed, 3)))
+        queue.append(([np.uint8(3)], advance_seed(seed, spawn_count)))
     initial_advances = len(queue[0][0])
     # check parent_data[1] flag each item
     while len(queue) != 0 and parent_data[1] == 0:

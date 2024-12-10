@@ -54,6 +54,8 @@ class MapWindow(QWidget):
     def setup_widgets(self) -> None:
         """Draw the widgets and main layout of the window"""
         self.map_widget = MapWidget()
+        settings = self.map_widget.settings()
+        settings.setAttribute(settings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
 
         self.main_layout = QHBoxLayout()
 

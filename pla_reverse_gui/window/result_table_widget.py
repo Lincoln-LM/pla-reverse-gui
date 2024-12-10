@@ -50,6 +50,7 @@ class ResultTableWidget(QTableWidget):
 
         self.action_open_path = QAction("Open Path Tracker", self)
         self.action_open_path.triggered.connect(self.open_path_tracker)
+        self.max_spawn_count = 0
         self.encounter_table = None
         self.seed = 0
         self.weather = None
@@ -67,7 +68,7 @@ class ResultTableWidget(QTableWidget):
         path_text = selected_row.text()
         if path_text == "N/A":
             return
-        path = tuple(int(x) for x in path_text.split("->"))
+        path = (self.max_spawn_count,) + tuple(int(x) for x in path_text.split("->"))
         path_tracker = PathTrackerWindow(
             self,
             self.encounter_table,

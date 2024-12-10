@@ -42,6 +42,13 @@ from ..pla_reverse_main.pla_reverse.size import calc_display_size
 from .eta_progress_bar import ETAProgressBar
 
 
+def compute_result_count(max_spawn_count: int, max_path_length: int) -> int:
+    """Calculate the total amount of results to be generated for a given spawner and max path length"""
+    if max_spawn_count == 1:
+        return max_path_length
+    initial_value = 1 if max_spawn_count != 3 else 2
+    return initial_value * (1 - max_spawn_count**max_path_length) // (1 - max_spawn_count)
+
 def labled_widget(
     label: str, widget_constructor: QWidget, *args, **kwargs
 ) -> tuple[QWidget, QWidget]:
@@ -92,7 +99,8 @@ class GeneratorWindow(QDialog):
         self.weather_combobox, weather_widget = labled_widget("Weather:", QComboBox)
         self.weather_combobox: QComboBox
         for weather in LAWeather:
-            self.weather_combobox.addItem(weather.name.title(), weather)
+            if weather != LAWeather.NONE:
+                self.weather_combobox.addItem(weather.name.title(), weather)
         self.time_combobox, time_widget = labled_widget("Time:", QComboBox)
         self.time_combobox: QComboBox
         for time in LATime:
@@ -242,9 +250,7 @@ class GeneratorWindow(QDialog):
                 len(filtered_species) == 0 or (species, form) in filtered_species,
             )
 
-        total_progress = 1
-        for _ in range(advance_range.stop - 1):
-            total_progress = total_progress * self.spawner.max_spawn_count + 1
+        total_progress = compute_result_count(self.spawner.max_spawn_count, advance_range.stop)
 
         self.progress_bar.setMaximum(total_progress)
         self.generator_update_thread = GeneratorUpdateThread(
@@ -282,6 +288,7 @@ class GeneratorWindow(QDialog):
         self.generator_update_thread.start()
 
         # TODO: storing encounter info in the table feels hacky
+        self.result_table.max_spawn_count = self.spawner.max_spawn_count
         self.result_table.encounter_table = self.encounter_table
         self.result_table.seed = seed
         self.result_table.weather = self.weather_combobox.currentData()
@@ -364,12 +371,15 @@ class GeneratorUpdateThread(QThread):
         """Thread work"""
         self.generator_thread.start()
 
-        total_progress = 1
-        for _ in range(self.args[2] - 1):
-            total_progress = total_progress * self.args[3] + 1
+        total_progress = compute_result_count(self.args[3], self.args[2])
 
         result_count = 0
         while True:
+            # checking here ensures final copied data is from after the thread finishes
+            thread_finished = (
+                self.isInterruptionRequested()
+                or not self.generator_thread.isRunning()
+            )
             progress = self.parent_data_hook[0]
             self.parent_data_hook[1] = self.isInterruptionRequested()
             self.progress.emit(progress)
@@ -381,8 +391,7 @@ class GeneratorUpdateThread(QThread):
                 result_count = len(results)
             if (
                 progress == total_progress
-                or self.isInterruptionRequested()
-                or not self.generator_thread.isRunning()
+                or thread_finished
             ):
                 break
             time.sleep(1)
