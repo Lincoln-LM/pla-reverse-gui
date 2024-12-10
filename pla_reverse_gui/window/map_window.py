@@ -1,10 +1,13 @@
 """QWidget window for main map display"""
+
 import numpy as np
 from numba_pokemon_prngs.data.encounter import (
     ENCOUNTER_INFORMATION_LA,
     ENCOUNTER_TABLE_NAMES_LA,
     SPAWNER_INFORMATION_LA,
     SPAWNER_NAMES_LA,
+    NHO_LOTTERY_TABLE_LA,
+    NHO_GROUP_TABLE_LA,
 )
 from numba_pokemon_prngs.enums import LAArea
 from numba_pokemon_prngs.data.fbs.encounter_la import PlacementSpawner8a
@@ -55,7 +58,9 @@ class MapWindow(QWidget):
         """Draw the widgets and main layout of the window"""
         self.map_widget = MapWidget()
         settings = self.map_widget.settings()
-        settings.setAttribute(settings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
+        settings.setAttribute(
+            settings.WebAttribute.LocalContentCanAccessRemoteUrls, True
+        )
 
         self.main_layout = QHBoxLayout()
 
@@ -76,6 +81,16 @@ class MapWindow(QWidget):
             self.location_combobox.addItem(name, map_id)
         self.spawner_combobox = QComboBox()
         self.spawner_combobox.currentIndexChanged.connect(self.spawner_combobox_changed)
+        self.first_wave_combobox = QComboBox()
+        self.first_wave_combobox.currentIndexChanged.connect(
+            self.first_wave_combobox_changed
+        )
+        self.first_wave_combobox.setHidden(True)
+        self.second_wave_combobox = QComboBox()
+        self.second_wave_combobox.currentIndexChanged.connect(
+            self.second_wave_combobox_changed
+        )
+        self.second_wave_combobox.setHidden(True)
         self.spawner_summary = QLabel("")
         self.seed_finder_button = QPushButton("Seed Finder")
         self.seed_finder_button.clicked.connect(self.open_seed_finder)
@@ -85,6 +100,8 @@ class MapWindow(QWidget):
         self.options_layout.addWidget(self.marker_filter)
         self.options_layout.addWidget(self.location_combobox)
         self.options_layout.addWidget(self.spawner_combobox)
+        self.options_layout.addWidget(self.first_wave_combobox)
+        self.options_layout.addWidget(self.second_wave_combobox)
         self.options_layout.addWidget(self.spawner_summary)
         self.options_layout.addWidget(self.seed_finder_button)
         self.options_layout.addWidget(self.generator_button)
@@ -204,13 +221,19 @@ class MapWindow(QWidget):
                 self.marker_icons[marker] = (
                     self.massive_mass_outbreak_marker_icon
                     if massive_mass_outbreak
-                    else self.mass_outbreak_marker_icon
-                    if mass_outbreak
-                    else self.single_spawner_icon
-                    if single_spawner
-                    else self.multi_spawner_icon
-                    if multi_spawner
-                    else self.unuseable_marker_icon
+                    else (
+                        self.mass_outbreak_marker_icon
+                        if mass_outbreak
+                        else (
+                            self.single_spawner_icon
+                            if single_spawner
+                            else (
+                                self.multi_spawner_icon
+                                if multi_spawner
+                                else self.unuseable_marker_icon
+                            )
+                        )
+                    )
                 )
             self.all_markers[map_id] = marker_list
         self.rendered_markers = []
@@ -326,6 +349,44 @@ class MapWindow(QWidget):
         if -1 < index < len(self.rendered_markers):
             self.select_marker(self.rendered_markers[index])
 
+    def first_wave_combobox_changed(self, _: int) -> None:
+        """Callback for when the first wave combobox's selected item changes"""
+        first_wave = self.first_wave_combobox.currentData()
+        if first_wave is None:
+            return
+        self.second_wave_combobox.clear()
+        for second_wave in first_wave.wave_details:
+            first_slot = self.encounter_information[
+                np.uint64(second_wave.encounter_table_id)
+            ].slots.view(np.recarray)[0]
+            self.second_wave_combobox.addItem(
+                f"Second Wave: {get_name_en(first_slot.species, first_slot.form, first_slot.is_alpha)} - 0x{first_wave.first_wave_encounter_table_id:016X}",
+                second_wave,
+            )
+
+    def second_wave_combobox_changed(self, _: int) -> None:
+        """Callback for when the second wave combobox's selected item changes"""
+        first_wave = self.first_wave_combobox.currentData()
+        second_wave = self.second_wave_combobox.currentData()
+        if first_wave is None or second_wave is None:
+            return
+        self.spawner_summary.setText(
+            "First Wave:\n"
+            + "\n".join(
+                f" - {get_name_en(slot.species, slot.form, slot.is_alpha)} Lv. {slot.min_level}-{slot.max_level} {f'{slot.guaranteed_ivs} Guaranteed IVs' if slot.guaranteed_ivs else ''}"
+                for slot in self.encounter_information[
+                    np.uint64(first_wave.first_wave_encounter_table_id)
+                ].slots.view(np.recarray)
+            )
+            + "\nSecond Wave:\n"
+            + "\n".join(
+                f" - {get_name_en(slot.species, slot.form, slot.is_alpha)} Lv. {slot.min_level}-{slot.max_level} {f'{slot.guaranteed_ivs} Guaranteed IVs' if slot.guaranteed_ivs else ''}"
+                for slot in self.encounter_information[
+                    np.uint64(second_wave.encounter_table_id)
+                ].slots.view(np.recarray)
+            )
+        )
+
     def select_marker(self, marker: L.marker) -> None:
         """Select a marker on the map and update displays"""
         if self.selected_marker is not None:
@@ -345,19 +406,44 @@ class MapWindow(QWidget):
             )
             self.map.setZoom(2)
             self.map.setView(marker.latLng, 2)
-            self.spawner_summary.setText(
-                f"Spawn Count: {spawner.min_spawn_count}-{spawner.max_spawn_count}\n"
-                f"Table: {ENCOUNTER_TABLE_NAMES_LA.get(np.uint64(spawner.encounter_table_id), '')} - 0x{spawner.encounter_table_id:016X}\n"
-                + "\n".join(
-                    f" - {get_name_en(slot.species, slot.form, slot.is_alpha)} Lv. {slot.min_level}-{slot.max_level} {f'{slot.guaranteed_ivs} Guaranteed IVs' if slot.guaranteed_ivs else ''}"
-                    for slot in self.encounter_information[
-                        np.uint64(spawner.encounter_table_id)
-                    ].slots.view(np.recarray)
+            # is MMO
+            if spawner.is_mass_outbreak and (
+                np.uint64(spawner.encounter_table_id)
+                not in ENCOUNTER_INFORMATION_LA[self.location_combobox.currentData()]
+            ):
+                self.first_wave_combobox.setVisible(True)
+                self.second_wave_combobox.setVisible(True)
+                self.first_wave_combobox.clear()
+                for first_wave_lotto in NHO_LOTTERY_TABLE_LA.lottery_group_lookup[
+                    np.uint64(spawner.encounter_table_id)
+                ].full_table_lookup.values():
+                    # fnv1a_64("")
+                    if first_wave_lotto.hash == 0xCBF29CE484222645:
+                        continue
+                    first_wave = NHO_GROUP_TABLE_LA.group_lookup[first_wave_lotto.hash]
+                    first_slot = self.encounter_information[
+                        np.uint64(first_wave.first_wave_encounter_table_id)
+                    ].slots.view(np.recarray)[0]
+                    self.first_wave_combobox.addItem(
+                        f"First Wave: {get_name_en(first_slot.species, first_slot.form, first_slot.is_alpha)} - 0x{first_wave.first_wave_encounter_table_id:016X}",
+                        first_wave,
+                    )
+            else:
+                self.first_wave_combobox.setHidden(True)
+                self.second_wave_combobox.setHidden(True)
+                self.spawner_summary.setText(
+                    f"Spawn Count: {spawner.min_spawn_count}-{spawner.max_spawn_count}\n"
+                    f"Table: {ENCOUNTER_TABLE_NAMES_LA.get(np.uint64(spawner.encounter_table_id), '')} - 0x{spawner.encounter_table_id:016X}\n"
+                    + "\n".join(
+                        f" - {get_name_en(slot.species, slot.form, slot.is_alpha)} Lv. {slot.min_level}-{slot.max_level} {f'{slot.guaranteed_ivs} Guaranteed IVs' if slot.guaranteed_ivs else ''}"
+                        for slot in self.encounter_information[
+                            np.uint64(spawner.encounter_table_id)
+                        ].slots.view(np.recarray)
+                    )
+                    if np.uint64(spawner.encounter_table_id)
+                    in ENCOUNTER_INFORMATION_LA[self.location_combobox.currentData()]
+                    else "Encounter table not found."
                 )
-                if np.uint64(spawner.encounter_table_id)
-                in ENCOUNTER_INFORMATION_LA[self.location_combobox.currentData()]
-                else "Encounter table not found."
-            )
         # select new marker
         self.map.runJavaScriptForMap(
             f"{marker.jsName}.setIcon({self.selected_marker_icon.jsName})"
