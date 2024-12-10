@@ -355,6 +355,7 @@ class MapWindow(QWidget):
         if first_wave is None:
             return
         self.second_wave_combobox.clear()
+        self.second_wave_combobox.addItem("Second Wave: None", None)
         for second_wave in first_wave.wave_details:
             first_slot = self.encounter_information[
                 np.uint64(second_wave.encounter_table_id)
@@ -368,7 +369,7 @@ class MapWindow(QWidget):
         """Callback for when the second wave combobox's selected item changes"""
         first_wave = self.first_wave_combobox.currentData()
         second_wave = self.second_wave_combobox.currentData()
-        if first_wave is None or second_wave is None:
+        if first_wave is None:
             return
         self.spawner_summary.setText(
             "First Wave:\n"
@@ -378,12 +379,16 @@ class MapWindow(QWidget):
                     np.uint64(first_wave.first_wave_encounter_table_id)
                 ].slots.view(np.recarray)
             )
-            + "\nSecond Wave:\n"
-            + "\n".join(
-                f" - {get_name_en(slot.species, slot.form, slot.is_alpha)} Lv. {slot.min_level}-{slot.max_level} {f'{slot.guaranteed_ivs} Guaranteed IVs' if slot.guaranteed_ivs else ''}"
-                for slot in self.encounter_information[
-                    np.uint64(second_wave.encounter_table_id)
-                ].slots.view(np.recarray)
+            + (
+                "\nSecond Wave:\n"
+                + "\n".join(
+                    f" - {get_name_en(slot.species, slot.form, slot.is_alpha)} Lv. {slot.min_level}-{slot.max_level} {f'{slot.guaranteed_ivs} Guaranteed IVs' if slot.guaranteed_ivs else ''}"
+                    for slot in self.encounter_information[
+                        np.uint64(second_wave.encounter_table_id)
+                    ].slots.view(np.recarray)
+                )
+                if second_wave is not None
+                else ""
             )
         )
 
@@ -467,13 +472,30 @@ class MapWindow(QWidget):
     def open_generator(self) -> None:
         """Open Generator for spawner"""
         spawner = self.spawner_information[self.spawner_combobox.currentIndex()]
-        encounter_table = self.encounter_information[
+        # is MMO
+        if spawner.is_mass_outbreak and (
             np.uint64(spawner.encounter_table_id)
-        ]
+            not in ENCOUNTER_INFORMATION_LA[self.location_combobox.currentData()]
+        ):
+            first_encounter_table = self.encounter_information[
+                np.uint64(
+                    self.first_wave_combobox.currentData().first_wave_encounter_table_id
+                )
+            ]
+            second_wave = self.second_wave_combobox.currentData()
+
+            second_encounter_table = (
+                self.encounter_information[np.uint64(second_wave.encounter_table_id)]
+                if second_wave is not None
+                else None
+            )
+        else:
+            first_encounter_table = self.encounter_information[
+                np.uint64(spawner.encounter_table_id)
+            ]
+            second_encounter_table = None
         generator_window = GeneratorWindow(
-            self,
-            spawner,
-            encounter_table,
+            self, spawner, first_encounter_table, second_encounter_table
         )
         generator_window.show()
         generator_window.setFocus()

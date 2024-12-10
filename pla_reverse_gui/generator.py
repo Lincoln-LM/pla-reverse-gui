@@ -29,9 +29,176 @@ def advance_seed(seed: np.uint64, ko_count: int) -> np.uint64:
 
     return seed0 + seed1
 
+@numba.njit(nogil=True)
+def generate_mass_outbreak(
+    seed: np.uint64,
+    first_wave_count: int,
+    second_wave_count: int,
+    first_wave_table: EncounterAreaLA,
+    second_wave_table: EncounterAreaLA,
+    species_info: dict[tuple[int, int], tuple[int, int, bool]],
+    gender_filter: tuple,
+    nature_filter: tuple,
+    size_filter: tuple,
+    shiny_filter: np.uint8,
+    alpha_filter: np.uint8,
+    iv_filters: tuple,
+    parent_data: np.ndarray,
+    results: TypedList,
+):
+    """
+    Non-mass outbreak spawner prediction generator
+    parent_data[0]: external uint64 count of how many pokemon have been checked
+    parent_data[1]: external bool (as uint64) flag for if the search should still run (threading)
+    """
+
+    # faster to reinit rather than create new objects
+    group_rng = Xoroshiro128PlusRejection(0, 0)
+    generator_rng = Xoroshiro128PlusRejection(0, 0)
+    fixed_rng = Xoroshiro128PlusRejection(0, 0)
+    queue = []
+    queue.append(([np.uint8(4)], first_wave_count - 4 - 2, 4, second_wave_count, advance_seed(seed, 4)))
+    # TODO: label actions, track aggressive/passive/oblivious & account for them
+    while len(queue) != 0 and parent_data[1] == 0:
+        item = queue.pop()
+        # increment progress counter
+        atomic_add(parent_data, 0, 1)
+        ko_path, first_wave_count, ghost_count, second_wave_count, group_seed = item
+        current_table = first_wave_table if first_wave_count != -1 else second_wave_table
+        # TODO: rip out pokemon generation
+        group_rng.re_init(group_seed)
+        for _ in range(ko_path[-1]):
+            generator_rng.re_init(group_rng.next())
+            group_rng.next()
+            slot: SlotLA = current_table.calc_slot(
+                generator_rng.next() * 5.421010862427522e-20,
+                np.int64(LATime.DAY),
+                np.int64(LAWeather.SUNNY),  # 1/2**64
+            )
+            # don't return ghosts as results
+            if ko_path[-1] > 10:
+                continue
+            gender_ratio, shiny_rolls, filtered_species = species_info[
+                (slot.species, slot.form)
+            ]
+            if not filtered_species:
+                continue
+            if alpha_filter and not slot.is_alpha:
+                continue
+            fixed_rng.re_init(generator_rng.next())
+            encryption_constant = fixed_rng.next_rand(0xFFFFFFFF)
+            sidtid = fixed_rng.next_rand(0xFFFFFFFF)
+            for _ in range(shiny_rolls + 13):
+                pid = fixed_rng.next_rand(0xFFFFFFFF)
+                xor = (
+                    (pid >> 16)
+                    ^ (sidtid >> 16)
+                    ^ (pid & 0xFFFF)
+                    ^ (sidtid & 0xFFFF)
+                )
+                shiny = 2 if xor == 0 else 1 if xor < 16 else 0
+                if shiny:
+                    break
+            if shiny_filter != 15 and not (shiny_filter & shiny):
+                continue
+            ivs = np.zeros(6, np.uint8)
+            for _ in range(slot.guaranteed_ivs):
+                index = fixed_rng.next_rand(6)
+                while ivs[index] != 0:
+                    index = fixed_rng.next_rand(6)
+                ivs[index] = 31
+            for i in range(6):
+                if ivs[i] == 0:
+                    ivs[i] = fixed_rng.next_rand(32)
+            passes_ivs = True
+            for i, (minimum, maximum) in enumerate(iv_filters):
+                if minimum > ivs[i]:
+                    passes_ivs = False
+                    break
+                if maximum < ivs[i]:
+                    passes_ivs = False
+                    break
+            if not passes_ivs:
+                continue
+            ability = fixed_rng.next_rand(2)
+            gender = 0 if gender_ratio == 0 else 1 if gender_ratio == 254 else 2
+            if slot.gender != 255:
+                gender = slot.gender
+            elif 1 <= gender_ratio < 254:
+                gender = (fixed_rng.next_rand(253) + 1) < gender_ratio
+            if len(gender_filter) != 0 and gender not in gender_filter:
+                continue
+            nature = fixed_rng.next_rand(25)
+            if len(nature_filter) != 0 and nature not in nature_filter:
+                continue
+            if slot.is_alpha:
+                height = weight = 255
+            else:
+                height = fixed_rng.next_rand(0x81) + fixed_rng.next_rand(0x80)
+                weight = fixed_rng.next_rand(0x81) + fixed_rng.next_rand(0x80)
+            if len(size_filter) != 0 and height not in size_filter:
+                continue
+            pokemon = (
+                len(ko_path),
+                ko_path,
+                (slot.species, slot.form, slot.is_alpha),
+                np.uint32(encryption_constant),
+                np.uint32(pid),
+                ivs,
+                np.uint8(ability),
+                np.uint8(gender),
+                np.uint8(nature),
+                np.uint8(shiny),
+                np.uint8(height),
+                np.uint8(weight),
+            )
+            results.append(pokemon)
+            # TODO: level rand?
+
+        for kos in range(1, min(5, first_wave_count + 1)):
+            new_item = (
+                ko_path + [np.uint8(kos)],
+                first_wave_count - kos,
+                ghost_count,
+                second_wave_count,
+                advance_seed(group_seed, ko_path[-1])
+            )
+            queue.append(new_item)
+        if first_wave_count == 0 and second_wave_count != 0:
+            if ghost_count != 0:
+                for kos in range(1, ghost_count + 1):
+                    new_item = (
+                        ko_path + [np.uint8(10 + kos)],
+                        first_wave_count,
+                        ghost_count - kos,
+                        second_wave_count,
+                        advance_seed(group_seed, ko_path[-1])
+                    )
+                    queue.append(new_item)
+            else:
+                new_item = (
+                    ko_path + [np.uint8(255), np.uint8(4)],
+                    -1,
+                    ghost_count,
+                    second_wave_count - 4,
+                    advance_seed(group_seed, ko_path[-1])
+                )
+                queue.append(new_item)
+        elif first_wave_count == -1:
+            for kos in range(1, min(5, second_wave_count + 1)):
+                new_item = (
+                    ko_path + [np.uint8(kos)],
+                    first_wave_count,
+                    ghost_count,
+                    second_wave_count - kos,
+                    advance_seed(group_seed, ko_path[-1])
+                )
+                queue.append(new_item)
+
+    return results
 
 @numba.njit(nogil=True)
-def generate(
+def generate_standard(
     seed: np.uint64,
     min_adv: int,
     max_adv: int,
@@ -50,7 +217,7 @@ def generate(
     results: TypedList,
 ):
     """
-    Spawner prediction generator
+    Non-mass outbreak spawner prediction generator
     parent_data[0]: external uint64 count of how many pokemon have been checked
     parent_data[1]: external bool (as uint64) flag for if the search should still run (threading)
     """
