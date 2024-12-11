@@ -163,7 +163,9 @@ class GeneratorWindow(QDialog):
             self.shiny_rolls_comboboxes[
                 slot.species
             ] = shiny_rolls_combobox
-        self.settings_layout.addWidget(QLabel("Starting Path:"))
+        starting_path_label = QLabel("Starting Path:")
+        starting_path_label.setVisible(self.spawner.max_spawn_count > 1 and not self.spawner.is_mass_outbreak)
+        self.settings_layout.addWidget(starting_path_label)
         self.starting_path_input = QLineEdit()
         # TODO: regex validation
         # self.starting_path_input.setValidator(
@@ -292,7 +294,7 @@ class GeneratorWindow(QDialog):
             compute_result_count(self.spawner.max_spawn_count, advance_range.stop)
             if not self.spawner.is_mass_outbreak
             # TODO: MO/MMO result count calculation
-            else 1000
+            else 10000
         )
 
         self.progress_bar.setMaximum(total_progress)
@@ -437,7 +439,7 @@ class GeneratorUpdateThread(QThread):
 
         if isinstance(self.args[3], EncounterAreaLA):
             # TODO: MO total count calculation
-            total_progress = 1000
+            total_progress = 10000
         else:
             total_progress = compute_result_count(self.args[4], self.args[3])
 
