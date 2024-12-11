@@ -258,9 +258,9 @@ class GeneratorWindow(QDialog):
         seed = np.uint64(seed)
         extra_shiny_rolls = 0
         if self.spawner.is_mass_outbreak:
-            extra_shiny_rolls = 26
+            extra_shiny_rolls = 25
             if self.is_mmo:
-                extra_shiny_rolls = 13
+                extra_shiny_rolls = 12
         starting_path = tuple(int(x) for x in self.starting_path_input.text().split("->") if x)
         if len(starting_path) == 0:
             starting_path = (-1,)

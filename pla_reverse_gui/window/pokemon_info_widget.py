@@ -41,9 +41,9 @@ class PokemonInfoWidget(QWidget):
         self.species_combobox = QComboBox()
         extra_shiny_rolls = 0
         if self.spawner.is_mass_outbreak:
-            extra_shiny_rolls = 26
+            extra_shiny_rolls = 25
             if self.spawner.encounter_table_id != self.encounter_table.table_id:
-                extra_shiny_rolls = 13
+                extra_shiny_rolls = 12
         added_species = []
         for slot in self.encounter_table.slots.view(np.recarray):
             if slot.is_alpha:
