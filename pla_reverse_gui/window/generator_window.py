@@ -135,15 +135,17 @@ class GeneratorWindow(QDialog):
         self.shiny_roll_entries = []
 
         self.added_species = []
+        self.unique_slots = set()
         self.shiny_rolls_comboboxes = {}
         # TODO: does second wave ever include new species?
         for slot in self.encounter_table.slots.view(np.recarray):
+            self.unique_slots.add((slot.species, slot.form))
             if slot.is_alpha:
                 continue
-            if (slot.species, slot.form) in self.added_species:
+            if slot.species in self.added_species:
                 continue
-            self.added_species.append((slot.species, slot.form))
-            species_name = get_name_en(slot.species, slot.form)
+            self.added_species.append(slot.species)
+            species_name = get_name_en(slot.species)
 
             shiny_rolls_combobox, shiny_rolls_outer = labled_widget(
                 species_name, QComboBox
@@ -158,7 +160,7 @@ class GeneratorWindow(QDialog):
                 shiny_rolls_combobox.addItem(*item)
             self.settings_layout.addWidget(shiny_rolls_outer)
             self.shiny_rolls_comboboxes[
-                (slot.species, slot.form)
+                slot.species
             ] = shiny_rolls_combobox
 
         self.filter_widget = QWidget()
@@ -168,9 +170,9 @@ class GeneratorWindow(QDialog):
             "Species Filter:", CheckableComboBox
         )
         self.species_filter: CheckableComboBox
-        for species_form in self.added_species:
+        for species in self.added_species:
             self.species_filter.add_checked_item(
-                get_name_en(*species_form), species_form
+                get_name_en(species), species
             )
         self.gender_filter, gender_widget = labled_widget(
             "Gender Filter:", CheckableComboBox
@@ -259,13 +261,13 @@ class GeneratorWindow(QDialog):
             for iv_range in (iv_filter.get_range() for iv_filter in self.iv_filters)
         )
 
-        for species, form in self.added_species:
+        for species, form in self.unique_slots:
             personal_info = get_personal_info(species, form)
             species_info[(species, form)] = (
                 self.basculin_gender
                 if (species, form) == (550, 2) and self.basculin_gender is not None
                 else personal_info.gender_ratio,
-                self.shiny_rolls_comboboxes[(species, form)].currentData(),
+                self.shiny_rolls_comboboxes[species].currentData(),
                 len(filtered_species) == 0 or (species, form) in filtered_species,
             )
 
