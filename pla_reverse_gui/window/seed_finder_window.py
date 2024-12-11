@@ -89,7 +89,7 @@ class SeedFinderWindow(QDialog):
             0xFD999DCA1D543790: 1,  # F
         }.get(spawner.encounter_table_id, None)
         self.spawner: PlacementSpawner8a = spawner
-        self.is_multi_spawner: bool = self.spawner.min_spawn_count > 1
+        self.is_multi_spawner: bool = self.spawner.min_spawn_count > 1 and not self.spawner.is_mass_outbreak
         self.encounter_table: EncounterAreaLA = encounter_table
         self.main_layout = QVBoxLayout(self)
         self.sub_widget = QWidget()
