@@ -162,6 +162,16 @@ class GeneratorWindow(QDialog):
             self.shiny_rolls_comboboxes[
                 slot.species
             ] = shiny_rolls_combobox
+        self.settings_layout.addWidget(QLabel("Starting Path:"))
+        self.starting_path_input = QLineEdit()
+        # TODO: regex validation
+        # self.starting_path_input.setValidator(
+        #     QRegularExpressionValidator(QtCore.QRegularExpression(""))
+        # )
+        self.starting_path_input.setVisible(self.spawner.max_spawn_count > 1 or self.spawner.is_mass_outbreak)
+        if self.spawner.is_mass_outbreak:
+            self.starting_path_input.setText("2")
+        self.settings_layout.addWidget(self.starting_path_input)
 
         self.filter_widget = QWidget()
         self.filter_layout = QVBoxLayout(self.filter_widget)
@@ -245,6 +255,10 @@ class GeneratorWindow(QDialog):
         self.result_table.setRowCount(0)
         seed = int(seed_str, 16) if (seed_str := self.seed_input.text()) else 0
         seed = np.uint64(seed)
+        starting_path = tuple(int(x) for x in self.starting_path_input.text().split("->") if x)
+        if len(starting_path) == 0:
+            assert not self.spawner.is_mass_outbreak, "Outbreaks require an initial path"
+            starting_path = (-1,)
         advance_range = self.advance_range.get_range()
         species_info = TypedDict.empty(
             key_type=numba.typeof((0, 0)), value_type=numba.typeof((0, 0, False))
@@ -284,6 +298,7 @@ class GeneratorWindow(QDialog):
                 self,
                 True,
                 seed,
+                starting_path,
                 self.first_wave_spawn_count.value(),
                 self.second_wave_spawn_count.value() if self.has_second_wave else 0,
                 self.encounter_table,
@@ -301,6 +316,7 @@ class GeneratorWindow(QDialog):
                 self,
                 False,
                 seed,
+                starting_path,
                 advance_range.start,
                 advance_range.stop,
                 self.spawner.max_spawn_count,
@@ -416,11 +432,11 @@ class GeneratorUpdateThread(QThread):
         """Thread work"""
         self.generator_thread.start()
 
-        if isinstance(self.args[3], EncounterAreaLA):
+        if isinstance(self.args[4], EncounterAreaLA):
             # TODO: MO total count calculation
             total_progress = 1000
         else:
-            total_progress = compute_result_count(self.args[3], self.args[2])
+            total_progress = compute_result_count(self.args[4], self.args[3])
 
         result_count = 0
         while True:

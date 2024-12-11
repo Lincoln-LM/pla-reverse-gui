@@ -32,6 +32,7 @@ def advance_seed(seed: np.uint64, ko_count: int) -> np.uint64:
 @numba.njit(nogil=True)
 def generate_mass_outbreak(
     seed: np.uint64,
+    starting_path: tuple[int],
     first_wave_count: int,
     second_wave_count: int,
     first_wave_table: EncounterAreaLA,
@@ -57,7 +58,14 @@ def generate_mass_outbreak(
     generator_rng = Xoroshiro128PlusRejection(0, 0)
     fixed_rng = Xoroshiro128PlusRejection(0, 0)
     queue = []
-    queue.append(([np.uint8(4)], first_wave_count - 4 - 2, 4, second_wave_count, advance_seed(seed, 4)))
+    # initial 4 spawns
+    starting_path = (4,) + starting_path
+    for kos in starting_path[:-1]:
+        seed = advance_seed(seed, kos)
+        # TODO: more functional starting path impl (ghosts/second wave)
+        first_wave_count -= kos
+    queue.append(([np.uint8(kos) for kos in starting_path[1:]], first_wave_count, 4, second_wave_count, seed))
+
     # TODO: label actions, track aggressive/passive/oblivious & account for them
     while len(queue) != 0 and parent_data[1] == 0:
         item = queue.pop()
@@ -200,6 +208,7 @@ def generate_mass_outbreak(
 @numba.njit(nogil=True)
 def generate_standard(
     seed: np.uint64,
+    starting_path: tuple[int],
     min_adv: int,
     max_adv: int,
     spawn_count: int,
@@ -228,17 +237,24 @@ def generate_standard(
     fixed_rng = Xoroshiro128PlusRejection(0, 0)
 
     queue = []
-    if spawn_count == 1:
-        # single spawners always start by catching two consecutive mons
-        queue.append(
-            ([np.uint8(1), np.uint8(1)], advance_seed(advance_seed(seed, 1), 1))
-        )
-    elif spawn_count > 1:
-        # triple/double spawners always start by catching the two mons there
-        queue.append(([np.uint8(2)], advance_seed(seed, spawn_count)))
-    if spawn_count == 3:
-        # triple spawners also have the option of catching the third mon
-        queue.append(([np.uint8(3)], advance_seed(seed, spawn_count)))
+    if starting_path[0] == -1:
+        if spawn_count == 1:
+            # single spawners always start by catching two consecutive mons
+            queue.append(
+                ([np.uint8(1), np.uint8(1)], advance_seed(advance_seed(seed, 1), 1))
+            )
+        elif spawn_count > 1:
+            # triple/double spawners always start by catching the two mons there
+            queue.append(([np.uint8(2)], advance_seed(seed, spawn_count)))
+        if spawn_count == 3:
+            # triple spawners also have the option of catching the third mon
+            queue.append(([np.uint8(3)], advance_seed(seed, spawn_count)))
+    else:
+        # initial spawns
+        starting_path = (spawn_count,) + starting_path
+        for kos in starting_path[:-1]:
+            seed = advance_seed(seed, kos)
+        queue.append(([np.uint8(kos) for kos in starting_path[1:]], seed))
     initial_advances = len(queue[0][0])
     # check parent_data[1] flag each item
     while len(queue) != 0 and parent_data[1] == 0:
