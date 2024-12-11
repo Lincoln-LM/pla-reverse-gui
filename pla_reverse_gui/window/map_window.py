@@ -458,9 +458,19 @@ class MapWindow(QWidget):
     def open_seed_finder(self) -> None:
         """Open Seed Finder for spawner"""
         spawner = self.spawner_information[self.spawner_combobox.currentIndex()]
-        encounter_table = self.encounter_information[
+        if spawner.is_mass_outbreak and (
             np.uint64(spawner.encounter_table_id)
-        ]
+            not in ENCOUNTER_INFORMATION_LA[self.location_combobox.currentData()]
+        ):
+            encounter_table = self.encounter_information[
+                np.uint64(
+                    self.first_wave_combobox.currentData().first_wave_encounter_table_id
+                )
+            ]
+        else:
+            encounter_table = self.encounter_information[
+                np.uint64(spawner.encounter_table_id)
+            ]
         seed_finder_window = SeedFinderWindow(
             self,
             spawner,
