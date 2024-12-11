@@ -501,7 +501,7 @@ class MapWindow(QWidget):
             ]
             second_wave = self.second_wave_combobox.currentData()
 
-            second_encounter_table = (
+            second_wave_encounter_table = (
                 self.encounter_information[np.uint64(second_wave.encounter_table_id)]
                 if second_wave is not None
                 else None
@@ -510,9 +510,9 @@ class MapWindow(QWidget):
             first_encounter_table = self.encounter_information[
                 np.uint64(spawner.encounter_table_id)
             ]
-            second_encounter_table = None
+            second_wave_encounter_table = None
         generator_window = GeneratorWindow(
-            self, spawner, first_encounter_table, second_encounter_table
+            self, spawner, first_encounter_table, second_wave_encounter_table
         )
         generator_window.show()
         generator_window.setFocus()

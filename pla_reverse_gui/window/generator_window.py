@@ -71,14 +71,15 @@ class GeneratorWindow(QDialog):
         parent: QWidget,
         spawner: PlacementSpawner8a,
         encounter_table: EncounterAreaLA,
-        second_encounter_table: EncounterAreaLA,
+        second_wave_encounter_table: EncounterAreaLA,
     ) -> None:
         super().__init__(parent)
         self.generator_update_thread = None
         self.spawner = spawner
         self.encounter_table = encounter_table
-        self.second_wave_encounter_table = second_encounter_table
+        self.second_wave_encounter_table = second_wave_encounter_table
         self.has_second_wave = self.second_wave_encounter_table is not None
+        self.is_mmo = spawner.encounter_table_id != self.encounter_table.table_id
         self.basculin_gender = {
             0xFD9CA9CA1D5681CB: 0,  # M
             0xFD999DCA1D543790: 1,  # F
@@ -253,6 +254,11 @@ class GeneratorWindow(QDialog):
         self.result_table.setRowCount(0)
         seed = int(seed_str, 16) if (seed_str := self.seed_input.text()) else 0
         seed = np.uint64(seed)
+        extra_shiny_rolls = 0
+        if self.spawner.is_mass_outbreak:
+            extra_shiny_rolls = 26
+            if self.is_mmo:
+                extra_shiny_rolls = 13
         starting_path = tuple(int(x) for x in self.starting_path_input.text().split("->") if x)
         if len(starting_path) == 0:
             starting_path = (-1,)
@@ -278,7 +284,7 @@ class GeneratorWindow(QDialog):
                 self.basculin_gender
                 if (species, form) == (550, 2) and self.basculin_gender is not None
                 else personal_info.gender_ratio,
-                self.shiny_rolls_comboboxes[species].currentData(),
+                self.shiny_rolls_comboboxes[species].currentData() + extra_shiny_rolls,
                 len(filtered_species) == 0 or (species, form) in filtered_species,
             )
 
@@ -347,6 +353,7 @@ class GeneratorWindow(QDialog):
         # TODO: storing encounter info in the table feels hacky
         self.result_table.max_spawn_count = self.spawner.max_spawn_count
         self.result_table.encounter_table = self.encounter_table
+        self.result_table.second_wave_encounter_table = self.second_wave_encounter_table
         self.result_table.seed = seed
         self.result_table.weather = self.weather_combobox.currentData()
         self.result_table.time = self.time_combobox.currentData()

@@ -60,7 +60,7 @@ def generate_mass_outbreak(
 
     # outbreaks always start by catching 3 consecutive singles (seed is relative to the last 2 so only advance twice)
     queue.append(
-        ([np.uint8(1), np.uint8(1), np.uint8(1)], first_wave_count - 4 - 3, 4, second_wave_count, advance_seed(advance_seed(seed, 1), 1))
+        ([np.uint8(1)], first_wave_count - 4 - 3, 4, second_wave_count, advance_seed(advance_seed(seed, 1), 1))
     )
 
     # TODO: label actions, track aggressive/passive/oblivious & account for them
@@ -72,7 +72,9 @@ def generate_mass_outbreak(
         current_table = first_wave_table if first_wave_count != -1 else second_wave_table
         # TODO: rip out pokemon generation
         group_rng.re_init(group_seed)
-        for _ in range(ko_path[-1]):
+        is_ghost = ko_path[-1] > 10
+        spawn_count = ko_path[-1] - 10 if is_ghost else ko_path[-1]
+        for _ in range(spawn_count):
             generator_rng.re_init(group_rng.next())
             group_rng.next()
             slot: SlotLA = current_table.calc_slot(
@@ -81,7 +83,7 @@ def generate_mass_outbreak(
                 np.int64(LAWeather.SUNNY),  # 1/2**64
             )
             # don't return ghosts as results
-            if ko_path[-1] > 10:
+            if is_ghost:
                 continue
             gender_ratio, shiny_rolls, filtered_species = species_info[
                 (slot.species, slot.form)
@@ -93,7 +95,7 @@ def generate_mass_outbreak(
             fixed_rng.re_init(generator_rng.next())
             encryption_constant = fixed_rng.next_rand(0xFFFFFFFF)
             sidtid = fixed_rng.next_rand(0xFFFFFFFF)
-            for _ in range(shiny_rolls + 13):
+            for _ in range(shiny_rolls):
                 pid = fixed_rng.next_rand(0xFFFFFFFF)
                 xor = (
                     (pid >> 16)
@@ -166,9 +168,10 @@ def generate_mass_outbreak(
                 first_wave_count - kos,
                 ghost_count,
                 second_wave_count,
-                advance_seed(group_seed, ko_path[-1])
+                advance_seed(group_seed, spawn_count)
             )
             queue.append(new_item)
+        # ghost spawns
         if first_wave_count == 0 and second_wave_count != 0:
             if ghost_count != 0:
                 for kos in range(1, ghost_count + 1):
@@ -177,18 +180,17 @@ def generate_mass_outbreak(
                         first_wave_count,
                         ghost_count - kos,
                         second_wave_count,
-                        advance_seed(group_seed, ko_path[-1])
+                        advance_seed(group_seed, spawn_count)
                     )
                     queue.append(new_item)
-            else:
-                new_item = (
-                    ko_path + [np.uint8(255), np.uint8(4)],
-                    -1,
-                    ghost_count,
-                    second_wave_count - 4,
-                    advance_seed(group_seed, ko_path[-1])
-                )
-                queue.append(new_item)
+            new_item = (
+                ko_path + [np.uint8(255), np.uint8(4)],
+                -1,
+                ghost_count,
+                second_wave_count - 4,
+                advance_seed(group_seed, spawn_count)
+            )
+            queue.append(new_item)
         elif first_wave_count == -1:
             for kos in range(1, min(5, second_wave_count + 1)):
                 new_item = (
@@ -196,7 +198,7 @@ def generate_mass_outbreak(
                     first_wave_count,
                     ghost_count,
                     second_wave_count - kos,
-                    advance_seed(group_seed, ko_path[-1])
+                    advance_seed(group_seed, spawn_count)
                 )
                 queue.append(new_item)
 

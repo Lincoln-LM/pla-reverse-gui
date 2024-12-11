@@ -56,7 +56,9 @@ class PathTrackerWindow(QDialog):
         self,
         parent: QWidget,
         encounter_table: EncounterAreaLA,
+        second_wave_encounter_table: EncounterAreaLA,
         seed: np.uint64,
+        pre_path: tuple[int],
         path: tuple[int],
         weather: LAWeather,
         time: LATime,
@@ -64,7 +66,7 @@ class PathTrackerWindow(QDialog):
     ) -> None:
         super().__init__(parent)
 
-        self.setWindowTitle("Path Tracker " + ("->".join(map(str, path[1:]))))
+        self.setWindowTitle("Path Tracker " + ("->".join(map(str, path))))
         self.main_layout = QVBoxLayout(self)
         self.path_table = PathTableWidget()
         self.main_layout.addWidget(self.path_table)
@@ -72,14 +74,25 @@ class PathTrackerWindow(QDialog):
             sum(column[1] for column in self.path_table.COLUMNS),
             self.height(),
         )
+        current_encounter_table = encounter_table
+
         group_rng = Xoroshiro128PlusRejection(seed)
-        for advance, spawn_count in enumerate(path, start=-1):
-            current_path = path[1 : advance + 2]
+        for advance, spawn_count in enumerate(pre_path + path, start=-len(pre_path)):
+            if spawn_count == 255:
+                current_encounter_table = second_wave_encounter_table
+                continue
+            is_ghost = False
+            if spawn_count > 10:
+                spawn_count -= 10
+                is_ghost = True
+            current_path = path[: max(advance + 1, 0)]
             for _ in range(spawn_count):
                 generator_seed = np.uint64(group_rng.next())
                 generator_rng = Xoroshiro128PlusRejection(generator_seed)
                 group_rng.next()
-                slot = encounter_table.calc_slot(
+                if is_ghost:
+                    continue
+                slot = current_encounter_table.calc_slot(
                     generator_rng.next() / 2 ** 64, np.int64(time), np.int64(weather)
                 )
                 gender_ratio, shiny_rolls, _ = species_info[(slot.species, slot.form)]
