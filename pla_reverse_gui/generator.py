@@ -32,7 +32,6 @@ def advance_seed(seed: np.uint64, ko_count: int) -> np.uint64:
 @numba.njit(nogil=True)
 def generate_mass_outbreak(
     seed: np.uint64,
-    starting_path: tuple[int],
     first_wave_count: int,
     second_wave_count: int,
     first_wave_table: EncounterAreaLA,
@@ -58,13 +57,11 @@ def generate_mass_outbreak(
     generator_rng = Xoroshiro128PlusRejection(0, 0)
     fixed_rng = Xoroshiro128PlusRejection(0, 0)
     queue = []
-    # initial 4 spawns
-    starting_path = (4,) + starting_path
-    for kos in starting_path[:-1]:
-        seed = advance_seed(seed, kos)
-        # TODO: more functional starting path impl (ghosts/second wave)
-        first_wave_count -= kos
-    queue.append(([np.uint8(kos) for kos in starting_path[1:]], first_wave_count, 4, second_wave_count, seed))
+
+    # outbreaks always start by catching 3 consecutive singles (seed is relative to the last 2 so only advance twice)
+    queue.append(
+        ([np.uint8(1), np.uint8(1), np.uint8(1)], first_wave_count - 4 - 3, 4, second_wave_count, advance_seed(advance_seed(seed, 1), 1))
+    )
 
     # TODO: label actions, track aggressive/passive/oblivious & account for them
     while len(queue) != 0 and parent_data[1] == 0:

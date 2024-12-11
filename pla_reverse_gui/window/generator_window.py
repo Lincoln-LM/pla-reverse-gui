@@ -168,9 +168,7 @@ class GeneratorWindow(QDialog):
         # self.starting_path_input.setValidator(
         #     QRegularExpressionValidator(QtCore.QRegularExpression(""))
         # )
-        self.starting_path_input.setVisible(self.spawner.max_spawn_count > 1 or self.spawner.is_mass_outbreak)
-        if self.spawner.is_mass_outbreak:
-            self.starting_path_input.setText("2")
+        self.starting_path_input.setVisible(self.spawner.max_spawn_count > 1 and not self.spawner.is_mass_outbreak)
         self.settings_layout.addWidget(self.starting_path_input)
 
         self.filter_widget = QWidget()
@@ -257,7 +255,6 @@ class GeneratorWindow(QDialog):
         seed = np.uint64(seed)
         starting_path = tuple(int(x) for x in self.starting_path_input.text().split("->") if x)
         if len(starting_path) == 0:
-            assert not self.spawner.is_mass_outbreak, "Outbreaks require an initial path"
             starting_path = (-1,)
         advance_range = self.advance_range.get_range()
         species_info = TypedDict.empty(
@@ -298,7 +295,6 @@ class GeneratorWindow(QDialog):
                 self,
                 True,
                 seed,
-                starting_path,
                 self.first_wave_spawn_count.value(),
                 self.second_wave_spawn_count.value() if self.has_second_wave else 0,
                 self.encounter_table,
@@ -432,7 +428,7 @@ class GeneratorUpdateThread(QThread):
         """Thread work"""
         self.generator_thread.start()
 
-        if isinstance(self.args[4], EncounterAreaLA):
+        if isinstance(self.args[3], EncounterAreaLA):
             # TODO: MO total count calculation
             total_progress = 1000
         else:
