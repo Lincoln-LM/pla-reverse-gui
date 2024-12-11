@@ -371,7 +371,7 @@ class MapWindow(QWidget):
         second_wave = self.second_wave_combobox.currentData()
         if first_wave is None:
             return
-        self.spawner_summary.setText(
+        spawner_text = (
             "First Wave:\n"
             + "\n".join(
                 f" - {get_name_en(slot.species, slot.form, slot.is_alpha)} Lv. {slot.min_level}-{slot.max_level} {f'{slot.guaranteed_ivs} Guaranteed IVs' if slot.guaranteed_ivs else ''}"
@@ -391,6 +391,13 @@ class MapWindow(QWidget):
                 else ""
             )
         )
+        # should only apply to unown, truncate spawner summary to 15 lines
+        if spawner_text.count("\n") > 15:
+            spawner_text = "\n".join(spawner_text.split("\n")[:15]) + "\n..."
+        self.spawner_summary.setText(
+            spawner_text
+        )
+
 
     def select_marker(self, marker: L.marker) -> None:
         """Select a marker on the map and update displays"""
