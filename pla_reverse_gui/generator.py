@@ -60,7 +60,7 @@ def generate_mass_outbreak(
 
     # outbreaks always start by catching 3 consecutive singles (seed is relative to the last 2 so only advance twice)
     queue.append(
-        ([np.uint8(1)], first_wave_count - 4 - 3, 4, second_wave_count, advance_seed(advance_seed(seed, 1), 1))
+        ([np.uint8(1)], first_wave_count - 4 - 3, 3, second_wave_count, advance_seed(advance_seed(seed, 1), 1))
     )
 
     # TODO: label actions, track aggressive/passive/oblivious & account for them
@@ -174,7 +174,7 @@ def generate_mass_outbreak(
         # ghost spawns
         if first_wave_count == 0 and second_wave_count != 0:
             if ghost_count != 0:
-                for kos in range(1, ghost_count + 1):
+                for kos in range(1, min(ghost_count + 1, 4)):
                     new_item = (
                         ko_path + [np.uint8(10 + kos)],
                         first_wave_count,
