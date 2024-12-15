@@ -73,7 +73,7 @@ def generate_mass_outbreak(
         # TODO: rip out pokemon generation
         group_rng.re_init(group_seed)
         is_ghost = ko_path[-1] > 10
-        spawn_count = ko_path[-1] - 10 if is_ghost else ko_path[-1]
+        spawn_count = 3 - ghost_count if is_ghost else ko_path[-1]
         for _ in range(spawn_count):
             generator_rng.re_init(group_rng.next())
             group_rng.next()
