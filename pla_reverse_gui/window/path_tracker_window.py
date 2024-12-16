@@ -77,13 +77,15 @@ class PathTrackerWindow(QDialog):
         current_encounter_table = encounter_table
 
         group_rng = Xoroshiro128PlusRejection(seed)
+        ghost_count = 3
         for advance, spawn_count in enumerate(pre_path + path, start=-len(pre_path)):
             if spawn_count == 255:
                 current_encounter_table = second_wave_encounter_table
                 continue
             is_ghost = False
             if spawn_count > 10:
-                spawn_count -= 10
+                ghost_count -= spawn_count - 10
+                spawn_count = 3 - ghost_count
                 is_ghost = True
             current_path = path[: max(advance + 1, 0)]
             for _ in range(spawn_count):
