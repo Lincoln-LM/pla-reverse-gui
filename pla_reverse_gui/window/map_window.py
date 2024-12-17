@@ -443,7 +443,7 @@ class MapWindow(QWidget):
             else:
                 self.first_wave_combobox.setHidden(True)
                 self.second_wave_combobox.setHidden(True)
-                self.spawner_summary.setText(
+                spawner_text = (
                     f"Spawn Count: {spawner.min_spawn_count}-{spawner.max_spawn_count}\n"
                     f"Table: {ENCOUNTER_TABLE_NAMES_LA.get(np.uint64(spawner.encounter_table_id), '')} - 0x{spawner.encounter_table_id:016X}\n"
                     + "\n".join(
@@ -455,6 +455,12 @@ class MapWindow(QWidget):
                     if np.uint64(spawner.encounter_table_id)
                     in ENCOUNTER_INFORMATION_LA[self.location_combobox.currentData()]
                     else "Encounter table not found."
+                )
+                # should only apply to unown, truncate spawner summary to 15 lines
+                if spawner_text.count("\n") > 15:
+                    spawner_text = "\n".join(spawner_text.split("\n")[:15]) + "\n..."
+                self.spawner_summary.setText(
+                    spawner_text
                 )
         # select new marker
         self.map.runJavaScriptForMap(
