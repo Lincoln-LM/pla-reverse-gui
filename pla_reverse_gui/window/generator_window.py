@@ -290,14 +290,11 @@ class GeneratorWindow(QDialog):
                 len(filtered_species) == 0 or (species, form) in filtered_species,
             )
 
-        total_progress = (
-            compute_result_count(self.spawner.max_spawn_count, advance_range.stop)
-            if not self.spawner.is_mass_outbreak
-            # TODO: MO/MMO result count calculation
-            else 10000
-        )
+        if self.spawner.is_mass_outbreak:
+            self.progress_bar.setMaximum(-1)
+        else:
+            self.progress_bar.setMaximum(compute_result_count(self.spawner.max_spawn_count, advance_range.stop))
 
-        self.progress_bar.setMaximum(total_progress)
         if self.spawner.is_mass_outbreak:
             self.generator_update_thread = GeneratorUpdateThread(
                 self,
@@ -344,6 +341,9 @@ class GeneratorWindow(QDialog):
             self.generate_button.setText("Generate")
             self.generate_button.clicked.disconnect(cleanup_generate)
             self.generate_button.clicked.connect(self.generate)
+            if self.progress_bar.maximum() == 0:
+                self.progress_bar.setMaximum(1)
+                self.progress_bar.setValue(1)
 
         self.generate_button.setText("Cancel")
         self.generate_button.clicked.disconnect(self.generate)
@@ -438,8 +438,7 @@ class GeneratorUpdateThread(QThread):
         self.generator_thread.start()
 
         if isinstance(self.args[3], EncounterAreaLA):
-            # TODO: MO total count calculation
-            total_progress = 10000
+            total_progress = -1
         else:
             total_progress = compute_result_count(self.args[4], self.args[3])
 

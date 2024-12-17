@@ -16,6 +16,8 @@ class ETAProgressBar(QProgressBar):
         super().__init__(parent)
 
     def setValue(self, value: int) -> None:
+        if self.maximum() == 0:
+            return
         QProgressBar.setValue(self, value)
         if value == 0:
             value = 1
@@ -34,5 +36,7 @@ class ETAProgressBar(QProgressBar):
         self.setFormat(f"{value/self.maximum()*100:.00f}% Estimated time: {eta_str}")
 
     def setMaximum(self, maximum: int) -> None:
+        if maximum == -1:
+            maximum = 0
         QProgressBar.setMaximum(self, maximum)
         self.start_time = None
