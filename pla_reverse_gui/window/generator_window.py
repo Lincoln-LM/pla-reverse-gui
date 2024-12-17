@@ -378,6 +378,7 @@ class GeneratorWindow(QDialog):
         self.generator_update_thread.start()
 
         # TODO: storing encounter info in the table feels hacky
+        self.result_table.min_spawn_count = self.spawner.min_spawn_count
         self.result_table.max_spawn_count = self.spawner.max_spawn_count
         self.result_table.encounter_table = self.encounter_table
         self.result_table.second_wave_encounter_table = self.second_wave_encounter_table
@@ -385,6 +386,7 @@ class GeneratorWindow(QDialog):
         self.result_table.weather = self.weather_combobox.currentData()
         self.result_table.time = self.time_combobox.currentData()
         self.result_table.species_info = species_info
+        self.result_table.spawn_counts = starting_path
 
     def add_result(self, row: tuple):
         (

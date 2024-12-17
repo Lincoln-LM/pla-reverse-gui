@@ -13,6 +13,8 @@ from numba_progress.numba_atomic import atomic_add
 @numba.njit()
 def advance_seed(seed: np.uint64, ko_count: int) -> np.uint64:
     """Advance a seed by the amount of kos you do"""
+    if ko_count == 0:
+        return seed
     seed0 = np.uint64(seed)
     seed1 = np.uint64(0x82A2B175229D6A5B)
     for _ in range(ko_count):
@@ -253,7 +255,7 @@ def generate_variable(
         ko_count = ko_path[-2]
         count_before_spawns = current_spawn_count - ko_count
         # new spawns either fill the remaining slots or spawn the full count
-        generated_count = min(max_spawn_count - count_before_spawns, count_values[count_idx])
+        generated_count = max(0, count_values[count_idx] - count_before_spawns)
         count_after_spawns = count_before_spawns + generated_count
         group_rng.re_init(group_seed)
         for _ in range(generated_count):
