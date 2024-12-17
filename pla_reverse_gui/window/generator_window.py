@@ -183,9 +183,9 @@ class GeneratorWindow(QDialog):
             "Species Filter:", CheckableComboBox
         )
         self.species_filter: CheckableComboBox
-        for species in self.added_species:
+        for species_form in self.unique_slots:
             self.species_filter.add_checked_item(
-                get_name_en(species), species
+                get_name_en(*species_form), species_form
             )
         self.gender_filter, gender_widget = labled_widget(
             "Gender Filter:", CheckableComboBox
