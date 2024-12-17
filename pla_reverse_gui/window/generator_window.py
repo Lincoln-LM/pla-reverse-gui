@@ -35,7 +35,7 @@ from qtpy.QtCore import QThread, Signal, Qt
 # pylint: enable=no-name-in-module
 
 from .result_table_widget import ResultTableWidget
-from ..util import get_name_en, get_personal_info, get_personal_index
+from ..util import get_name_en, get_personal_info, get_personal_index, path_to_string
 from .checkable_combobox_widget import CheckableComboBox
 from .range_widget import RangeWidget
 from ..generator import generate_standard, generate_mass_outbreak
@@ -388,7 +388,7 @@ class GeneratorWindow(QDialog):
         self.result_table.insertRow(row_i)
         row = (
             advance,
-            "->".join(str(ko) for ko in path)
+            path_to_string(path)
             if self.spawner.max_spawn_count != 1
             else "N/A",
             get_name_en(species, form, is_alpha),

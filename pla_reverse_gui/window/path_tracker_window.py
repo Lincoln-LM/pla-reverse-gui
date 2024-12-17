@@ -17,7 +17,7 @@ from qtpy.QtWidgets import (
 
 # pylint: enable=no-name-in-module
 
-from ..util import calc_effort_level, get_personal_index, get_name_en
+from ..util import calc_effort_level, get_personal_index, get_name_en, path_to_string
 from ..pla_reverse_main.pla_reverse.size import calc_display_size
 
 
@@ -66,7 +66,7 @@ class PathTrackerWindow(QDialog):
     ) -> None:
         super().__init__(parent)
 
-        self.setWindowTitle("Path Tracker " + ("->".join(map(str, path))))
+        self.setWindowTitle("Path Tracker " + path_to_string(path))
         self.main_layout = QVBoxLayout(self)
         self.path_table = PathTableWidget()
         self.main_layout.addWidget(self.path_table)
@@ -79,11 +79,12 @@ class PathTrackerWindow(QDialog):
         group_rng = Xoroshiro128PlusRejection(seed)
         ghost_count = 3
         for advance, spawn_count in enumerate(pre_path + path, start=-len(pre_path)):
-            if spawn_count == 255:
-                current_encounter_table = second_wave_encounter_table
-                continue
             is_ghost = False
-            if spawn_count > 10:
+            # clear wave
+            if spawn_count == 255:
+                spawn_count = 4
+                current_encounter_table = second_wave_encounter_table
+            elif spawn_count > 10:
                 ghost_count -= spawn_count - 10
                 spawn_count = 3 - ghost_count
                 is_ghost = True
@@ -143,7 +144,7 @@ class PathTrackerWindow(QDialog):
                 self.path_table.insertRow(row_i)
                 row = (
                     str(advance),
-                    "->".join(str(x) for x in current_path),
+                    path_to_string(current_path),
                     get_name_en(slot.species, slot.form, slot.is_alpha),
                     "Square" if shiny == 2 else "Star" if shiny else "No",
                     "Yes" if slot.is_alpha else "No",

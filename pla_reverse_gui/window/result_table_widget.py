@@ -11,6 +11,7 @@ from qtpy.QtCore import Qt
 
 # pylint: enable=no-name-in-module
 from .path_tracker_window import PathTrackerWindow
+from ..util import string_to_path
 
 
 class ResultTableWidget(QTableWidget):
@@ -72,7 +73,7 @@ class ResultTableWidget(QTableWidget):
             pre_path = (1, 1)
         else:
             pre_path = (self.max_spawn_count,)
-        path = tuple(int(x) for x in path_text.split("->"))
+        path = string_to_path(path_text)
         path_tracker = PathTrackerWindow(
             self,
             self.encounter_table,

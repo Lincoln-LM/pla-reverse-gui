@@ -72,8 +72,10 @@ def generate_mass_outbreak(
         current_table = first_wave_table if first_wave_count != -1 else second_wave_table
         # TODO: rip out pokemon generation
         group_rng.re_init(group_seed)
-        is_ghost = ko_path[-1] > 10
-        spawn_count = 3 - ghost_count if is_ghost else ko_path[-1]
+        is_clear_wave = ko_path[-1] == 255
+        is_ghost = not is_clear_wave and ko_path[-1] > 10
+        # new round always spawns 4 pokemon
+        spawn_count = 4 if is_clear_wave else 3 - ghost_count if is_ghost else ko_path[-1]
         for _ in range(spawn_count):
             generator_rng.re_init(group_rng.next())
             group_rng.next()
@@ -184,7 +186,7 @@ def generate_mass_outbreak(
                     )
                     queue.append(new_item)
             new_item = (
-                ko_path + [np.uint8(255), np.uint8(4)],
+                ko_path + [np.uint8(255)],
                 -1,
                 ghost_count,
                 second_wave_count - 4,
