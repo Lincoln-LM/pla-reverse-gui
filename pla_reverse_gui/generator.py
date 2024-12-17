@@ -207,6 +207,159 @@ def generate_mass_outbreak(
     return results
 
 @numba.njit(nogil=True)
+def generate_variable(
+    seed: np.uint64,
+    count_values: tuple[int],
+    max_spawn_count: int,
+    encounter_table: EncounterAreaLA,
+    weather: LAWeather,
+    time: LATime,
+    species_info: dict[tuple[int, int], tuple[int, int, bool]],
+    gender_filter: tuple,
+    nature_filter: tuple,
+    size_filter: tuple,
+    shiny_filter: np.uint8,
+    alpha_filter: np.uint8,
+    iv_filters: tuple,
+    parent_data: np.ndarray,
+    results: TypedList,
+):
+    """
+    Variable multi spawner prediction generator
+    parent_data[0]: external uint64 count of how many pokemon have been checked
+    parent_data[1]: external bool (as uint64) flag for if the search should still run (threading)
+    """
+    if count_values[0] == -1:
+        return results
+
+    # faster to reinit rather than create new objects
+    group_rng = Xoroshiro128PlusRejection(0, 0)
+    generator_rng = Xoroshiro128PlusRejection(0, 0)
+    fixed_rng = Xoroshiro128PlusRejection(0, 0)
+
+    queue = []
+    # variable multis always start by catching 2 isolated pokemon
+    queue.append(([np.uint8(2), np.uint8(21)], advance_seed(seed, 2), 0, 2))
+    initial_advances = len(queue[0][0])
+    # check parent_data[1] flag each item
+    while len(queue) != 0 and parent_data[1] == 0:
+        item = queue.pop()
+        # increment progress counter
+        atomic_add(parent_data, 0, 1)
+        advance = (len(item[0]) - initial_advances)//2
+        ko_path, group_seed, count_idx, current_spawn_count = item
+        if count_idx >= len(count_values):
+            continue
+        ko_count = ko_path[-2]
+        count_before_spawns = current_spawn_count - ko_count
+        # new spawns either fill the remaining slots or spawn the full count
+        generated_count = min(max_spawn_count - count_before_spawns, count_values[count_idx])
+        count_after_spawns = count_before_spawns + generated_count
+        group_rng.re_init(group_seed)
+        for _ in range(generated_count):
+            generator_rng.re_init(group_rng.next())
+            group_rng.next()
+            slot: SlotLA = encounter_table.calc_slot(
+                generator_rng.next() * 5.421010862427522e-20,
+                np.int64(time),
+                np.int64(weather),  # 1/2**64
+            )
+            gender_ratio, shiny_rolls, filtered_species = species_info[
+                (slot.species, slot.form)
+            ]
+            if not filtered_species:
+                continue
+            if alpha_filter and not slot.is_alpha:
+                continue
+            fixed_rng.re_init(generator_rng.next())
+            encryption_constant = fixed_rng.next_rand(0xFFFFFFFF)
+            sidtid = fixed_rng.next_rand(0xFFFFFFFF)
+            for _ in range(shiny_rolls):
+                pid = fixed_rng.next_rand(0xFFFFFFFF)
+                xor = (
+                    (pid >> 16)
+                    ^ (sidtid >> 16)
+                    ^ (pid & 0xFFFF)
+                    ^ (sidtid & 0xFFFF)
+                )
+                shiny = 2 if xor == 0 else 1 if xor < 16 else 0
+                if shiny:
+                    break
+            if shiny_filter != 15 and not (shiny_filter & shiny):
+                continue
+            ivs = np.zeros(6, np.uint8)
+            for _ in range(slot.guaranteed_ivs):
+                index = fixed_rng.next_rand(6)
+                while ivs[index] != 0:
+                    index = fixed_rng.next_rand(6)
+                ivs[index] = 31
+            for i in range(6):
+                if ivs[i] == 0:
+                    ivs[i] = fixed_rng.next_rand(32)
+            passes_ivs = True
+            for i, (minimum, maximum) in enumerate(iv_filters):
+                if minimum > ivs[i]:
+                    passes_ivs = False
+                    break
+                if maximum < ivs[i]:
+                    passes_ivs = False
+                    break
+            if not passes_ivs:
+                continue
+            ability = fixed_rng.next_rand(2)
+            gender = 0 if gender_ratio == 0 else 1 if gender_ratio == 254 else 2
+            if slot.gender != 255:
+                gender = slot.gender
+            elif 1 <= gender_ratio < 254:
+                gender = (fixed_rng.next_rand(253) + 1) < gender_ratio
+            if len(gender_filter) != 0 and gender not in gender_filter:
+                continue
+            nature = fixed_rng.next_rand(25)
+            if len(nature_filter) != 0 and nature not in nature_filter:
+                continue
+            if slot.is_alpha:
+                height = weight = 255
+            else:
+                height = fixed_rng.next_rand(0x81) + fixed_rng.next_rand(0x80)
+                weight = fixed_rng.next_rand(0x81) + fixed_rng.next_rand(0x80)
+            if len(size_filter) != 0 and height not in size_filter:
+                continue
+            pokemon = (
+                advance,
+                ko_path,
+                (slot.species, slot.form, slot.is_alpha),
+                np.uint32(encryption_constant),
+                np.uint32(pid),
+                ivs,
+                np.uint8(ability),
+                np.uint8(gender),
+                np.uint8(nature),
+                np.uint8(shiny),
+                np.uint8(height),
+                np.uint8(weight),
+            )
+            results.append(pokemon)
+            # TODO: level rand?
+
+        for kos in range(0, count_after_spawns + 1):
+            new_item = (
+                ko_path + [np.uint8(kos), np.uint8(21)],
+                advance_seed(group_seed, generated_count),
+                count_idx + 1,
+                count_after_spawns
+            )
+            queue.append(new_item)
+            new_item = (
+                ko_path + [np.uint8(kos), np.uint8(22)],
+                advance_seed(group_seed, generated_count),
+                count_idx + 2,
+                count_after_spawns
+            )
+            queue.append(new_item)
+    return results
+
+
+@numba.njit(nogil=True)
 def generate_standard(
     seed: np.uint64,
     starting_path: tuple[int],

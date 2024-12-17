@@ -155,7 +155,10 @@ def path_to_string(path: tuple[int]) -> str:
         (
             str(n) if n < 10 else
             "Clear Wave" if n == 255 else
-            f"Ghost {n - 10}"
+            f"Ghost {n - 10}" if n < 20 else
+            "T|W" if n == 21 else
+            "T&W" if n == 22 else
+            "Invalid"
         ) for n in path
     )
 
@@ -166,6 +169,8 @@ def string_to_path(string: str) -> tuple[int]:
         (
             255 if n == "Clear Wave" else
             int(n.split(" ")[1]) + 10 if n.startswith("Ghost") else
+            21 if n == "T|W" else
+            22 if n == "T&W" else
             int(n)
         ) for n in string.split("->")
     )
