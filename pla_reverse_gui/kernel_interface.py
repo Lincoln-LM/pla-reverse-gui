@@ -293,6 +293,7 @@ class ComputeGroupSeedThread(QThread):
     """Interface for group_seed shader"""
 
     finished = Signal()
+    valid_result = Signal(bool)
     log = Signal(str)
 
     def __init__(self, fixed_seeds_2, generator_seeds, multi_spawner: bool) -> None:
@@ -351,3 +352,6 @@ class ComputeGroupSeedThread(QThread):
 
         group_seed = host_results[0]
         self.log.emit(f"Group Seed Found: {group_seed:016X} | {group_seed}")
+        # TODO: technically 1/2^64 valid group seed, use a better flag
+        self.valid_result.emit(group_seed != 0)
+        self.finished.emit()
