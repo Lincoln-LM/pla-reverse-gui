@@ -80,7 +80,7 @@ class PathTrackerWindow(QDialog):
 
         group_rng = Xoroshiro128PlusRejection(seed)
         ghost_count = 3
-        count_idx = 0
+        count_idx = -1
         # variable multi logic
         current_spawn_count = 2
         for advance, spawn_count in enumerate(pre_path + path, start=-len(pre_path)):
@@ -90,7 +90,6 @@ class PathTrackerWindow(QDialog):
                 spawn_count = 4
                 current_encounter_table = second_wave_encounter_table
             elif spawn_count > 20:
-                count_idx += spawn_count - 20
                 continue
             elif spawn_count > 10:
                 ghost_count -= spawn_count - 10
@@ -100,6 +99,7 @@ class PathTrackerWindow(QDialog):
             if count_values is not None:
                 current_path = path[: max(2 * advance + 2 if advance < 0 else advance + 2, 0)]
                 if advance >= 0:
+                    count_idx += path[advance + 1] - 20
                     count_before_spawns = current_spawn_count - spawn_count
                     spawn_count = max(0, count_values[count_idx] - count_before_spawns)
                     current_spawn_count = count_before_spawns + spawn_count
