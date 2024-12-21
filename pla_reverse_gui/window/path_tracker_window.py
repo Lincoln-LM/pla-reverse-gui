@@ -96,7 +96,7 @@ class PathTrackerWindow(QDialog):
                 spawn_count = 3 - ghost_count
                 is_ghost = True
             current_path = path[: max(advance + 1, 0)]
-            if count_values is not None:
+            if count_values[0] != -1:
                 current_path = path[: max(2 * advance + 2 if advance < 0 else advance + 2, 0)]
                 if advance >= 0:
                     count_idx += path[advance + 1] - 20
