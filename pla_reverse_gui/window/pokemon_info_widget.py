@@ -39,6 +39,11 @@ class PokemonInfoWidget(QWidget):
         self.main_layout = QVBoxLayout(self)
         self.pokemon_title = QLabel(title)
         self.species_combobox = QComboBox()
+        extra_shiny_rolls = 0
+        if self.spawner.is_mass_outbreak:
+            extra_shiny_rolls = 25
+            if self.spawner.encounter_table_id != self.encounter_table.table_id:
+                extra_shiny_rolls = 12
         added_species = []
         for slot in self.encounter_table.slots.view(np.recarray):
             if slot.is_alpha:
@@ -53,11 +58,11 @@ class PokemonInfoWidget(QWidget):
         self.species_combobox.currentIndexChanged.connect(self.species_changed)
         self.shiny_rolls_combobox = QComboBox()
         for item in (
-            ("Base Research", 1),
-            ("Research Level 10", 2),
-            ("Perfect Research", 4),
-            ("Shiny Charm + Research Level 10", 5),
-            ("Shiny Charm + Perfect Research", 7),
+            ("Base Research", 1 + extra_shiny_rolls),
+            ("Research Level 10", 2 + extra_shiny_rolls),
+            ("Perfect Research", 4 + extra_shiny_rolls),
+            ("Shiny Charm + Research Level 10", 5 + extra_shiny_rolls),
+            ("Shiny Charm + Perfect Research", 7 + extra_shiny_rolls),
         ):
             self.shiny_rolls_combobox.addItem(*item)
         self.nature_combobox = QComboBox()

@@ -26,6 +26,7 @@ from qtpy.QtWidgets import (
     QCheckBox,
     QPushButton,
     QTableWidgetItem,
+    QSpinBox,
 )
 from qtpy.QtGui import QRegularExpressionValidator
 from qtpy import QtCore
@@ -34,10 +35,10 @@ from qtpy.QtCore import QThread, Signal, Qt
 # pylint: enable=no-name-in-module
 
 from .result_table_widget import ResultTableWidget
-from ..util import get_name_en, get_personal_info, get_personal_index
+from ..util import get_name_en, get_personal_info, get_personal_index, path_to_string
 from .checkable_combobox_widget import CheckableComboBox
 from .range_widget import RangeWidget
-from ..generator import generate
+from ..generator import generate_standard, generate_mass_outbreak
 from ..pla_reverse_main.pla_reverse.size import calc_display_size
 from .eta_progress_bar import ETAProgressBar
 
@@ -70,11 +71,15 @@ class GeneratorWindow(QDialog):
         parent: QWidget,
         spawner: PlacementSpawner8a,
         encounter_table: EncounterAreaLA,
+        second_wave_encounter_table: EncounterAreaLA,
     ) -> None:
         super().__init__(parent)
         self.generator_update_thread = None
         self.spawner = spawner
         self.encounter_table = encounter_table
+        self.second_wave_encounter_table = second_wave_encounter_table
+        self.has_second_wave = self.second_wave_encounter_table is not None
+        self.is_mmo = spawner.encounter_table_id != self.encounter_table.table_id
         self.basculin_gender = {
             0xFD9CA9CA1D5681CB: 0,  # M
             0xFD999DCA1D543790: 1,  # F
@@ -82,7 +87,7 @@ class GeneratorWindow(QDialog):
         self.setWindowTitle(
             "Generator "
             f"{SPAWNER_NAMES_LA.get(np.uint64(spawner.spawner_id), '')} - "
-            f"{ENCOUNTER_TABLE_NAMES_LA.get(np.uint64(spawner.encounter_table_id), '')}"
+            f"{ENCOUNTER_TABLE_NAMES_LA.get(np.uint64(self.encounter_table.table_id), '')}"
         )
         self.main_layout = QVBoxLayout(self)
         self.top_widget = QWidget()
@@ -95,7 +100,8 @@ class GeneratorWindow(QDialog):
             QRegularExpressionValidator(QtCore.QRegularExpression("[0-9a-fA-F]{0,16}"))
         )
         self.settings_layout.addWidget(self.seed_input)
-        self.settings_layout.addWidget(QLabel("Settings:"))
+        settings_label = QLabel("Settings:")
+        self.settings_layout.addWidget(settings_label)
         self.weather_combobox, weather_widget = labled_widget("Weather:", QComboBox)
         self.weather_combobox: QComboBox
         for weather in LAWeather:
@@ -105,26 +111,44 @@ class GeneratorWindow(QDialog):
         self.time_combobox: QComboBox
         for time in LATime:
             self.time_combobox.addItem(time.name.title(), time)
+        settings_label.setVisible(not self.spawner.is_mass_outbreak)
+        weather_widget.setVisible(not self.spawner.is_mass_outbreak)
+        time_widget.setVisible(not self.spawner.is_mass_outbreak)
         self.settings_layout.addWidget(weather_widget)
         self.settings_layout.addWidget(time_widget)
-        self.settings_layout.addWidget(QLabel("Advance Range:"))
+        spawn_count_label = QLabel("Spawn Count:")
+        spawn_count_label.setVisible(bool(self.spawner.is_mass_outbreak))
+        self.settings_layout.addWidget(spawn_count_label)
+        self.first_wave_spawn_count, first_wave_spawn_count_widget = labled_widget("First Wave:", QSpinBox, minimum=8, maximum=10)
+        first_wave_spawn_count_widget.setVisible(bool(self.spawner.is_mass_outbreak))
+        self.second_wave_spawn_count, second_wave_spawn_count_widget = labled_widget("Second Wave:", QSpinBox, minimum=6, maximum=8)
+        second_wave_spawn_count_widget.setVisible(self.has_second_wave)
+        self.settings_layout.addWidget(first_wave_spawn_count_widget)
+        self.settings_layout.addWidget(second_wave_spawn_count_widget)
+        advance_range_label = QLabel("Advance Range:")
+        self.settings_layout.addWidget(advance_range_label)
         self.advance_range = RangeWidget(
             0, 20 if self.spawner.min_spawn_count > 1 else 9999
         )
         self.advance_range.max_entry.setMaximum(99999999)
+        advance_range_label.setVisible(not self.spawner.is_mass_outbreak)
+        self.advance_range.setVisible(not self.spawner.is_mass_outbreak)
         self.settings_layout.addWidget(self.advance_range)
         self.settings_layout.addWidget(QLabel("Shiny Rolls:"))
         self.shiny_roll_entries = []
 
         self.added_species = []
+        self.unique_slots = set()
         self.shiny_rolls_comboboxes = {}
+        # TODO: does second wave ever include new species?
         for slot in self.encounter_table.slots.view(np.recarray):
+            self.unique_slots.add((slot.species, slot.form))
             if slot.is_alpha:
                 continue
-            if (slot.species, slot.form) in self.added_species:
+            if slot.species in self.added_species:
                 continue
-            self.added_species.append((slot.species, slot.form))
-            species_name = get_name_en(slot.species, slot.form)
+            self.added_species.append(slot.species)
+            species_name = get_name_en(slot.species)
 
             shiny_rolls_combobox, shiny_rolls_outer = labled_widget(
                 species_name, QComboBox
@@ -139,8 +163,18 @@ class GeneratorWindow(QDialog):
                 shiny_rolls_combobox.addItem(*item)
             self.settings_layout.addWidget(shiny_rolls_outer)
             self.shiny_rolls_comboboxes[
-                (slot.species, slot.form)
+                slot.species
             ] = shiny_rolls_combobox
+        starting_path_label = QLabel("Starting Path:")
+        starting_path_label.setVisible(self.spawner.max_spawn_count > 1 and not self.spawner.is_mass_outbreak)
+        self.settings_layout.addWidget(starting_path_label)
+        self.starting_path_input = QLineEdit()
+        # TODO: regex validation
+        # self.starting_path_input.setValidator(
+        #     QRegularExpressionValidator(QtCore.QRegularExpression(""))
+        # )
+        self.starting_path_input.setVisible(self.spawner.max_spawn_count > 1 and not self.spawner.is_mass_outbreak)
+        self.settings_layout.addWidget(self.starting_path_input)
 
         self.filter_widget = QWidget()
         self.filter_layout = QVBoxLayout(self.filter_widget)
@@ -149,7 +183,7 @@ class GeneratorWindow(QDialog):
             "Species Filter:", CheckableComboBox
         )
         self.species_filter: CheckableComboBox
-        for species_form in self.added_species:
+        for species_form in self.unique_slots:
             self.species_filter.add_checked_item(
                 get_name_en(*species_form), species_form
             )
@@ -173,7 +207,9 @@ class GeneratorWindow(QDialog):
         self.shiny_filter.addItem("Star/Square", 1 | 2)
         self.alpha_filter = QCheckBox("Alpha Only")
 
-        self.size_filter, size_widget = labled_widget("Height/Scale Filter:", CheckableComboBox)
+        self.size_filter, size_widget = labled_widget(
+            "Height/Scale Filter:", CheckableComboBox
+        )
         self.size_filter: CheckableComboBox
         self.size_filter.add_checked_item("XXXS (0)", 0)
         self.size_filter.add_checked_item("XXXL (255)", 255)
@@ -222,6 +258,14 @@ class GeneratorWindow(QDialog):
         self.result_table.setRowCount(0)
         seed = int(seed_str, 16) if (seed_str := self.seed_input.text()) else 0
         seed = np.uint64(seed)
+        extra_shiny_rolls = 0
+        if self.spawner.is_mass_outbreak:
+            extra_shiny_rolls = 25
+            if self.is_mmo:
+                extra_shiny_rolls = 12
+        starting_path = tuple(int(x) for x in self.starting_path_input.text().split("->") if x)
+        if len(starting_path) == 0:
+            starting_path = (-1,)
         advance_range = self.advance_range.get_range()
         species_info = TypedDict.empty(
             key_type=numba.typeof((0, 0)), value_type=numba.typeof((0, 0, False))
@@ -238,36 +282,58 @@ class GeneratorWindow(QDialog):
             for iv_range in (iv_filter.get_range() for iv_filter in self.iv_filters)
         )
 
-        for species, form in self.added_species:
+        for species, form in self.unique_slots:
             personal_info = get_personal_info(species, form)
             species_info[(species, form)] = (
                 self.basculin_gender
                 if (species, form) == (550, 2) and self.basculin_gender is not None
                 else personal_info.gender_ratio,
-                self.shiny_rolls_comboboxes[(species, form)].currentData(),
+                self.shiny_rolls_comboboxes[species].currentData() + extra_shiny_rolls,
                 len(filtered_species) == 0 or (species, form) in filtered_species,
             )
 
-        total_progress = compute_result_count(self.spawner.max_spawn_count, advance_range.stop)
+        if self.spawner.is_mass_outbreak:
+            self.progress_bar.setMaximum(-1)
+        else:
+            self.progress_bar.setMaximum(compute_result_count(self.spawner.max_spawn_count, advance_range.stop))
 
-        self.progress_bar.setMaximum(total_progress)
-        self.generator_update_thread = GeneratorUpdateThread(
-            self,
-            seed,
-            advance_range.start,
-            advance_range.stop,
-            self.spawner.max_spawn_count,
-            self.encounter_table,
-            self.weather_combobox.currentData(),
-            self.time_combobox.currentData(),
-            species_info,
-            filtered_genders,
-            filtered_natures,
-            filtered_sizes,
-            shiny_filter,
-            alpha_filter,
-            iv_filters,
-        )
+        if self.spawner.is_mass_outbreak:
+            self.generator_update_thread = GeneratorUpdateThread(
+                self,
+                True,
+                seed,
+                self.first_wave_spawn_count.value(),
+                self.second_wave_spawn_count.value() if self.has_second_wave else 0,
+                self.encounter_table,
+                self.second_wave_encounter_table or self.second_wave_encounter_table,
+                species_info,
+                filtered_genders,
+                filtered_natures,
+                filtered_sizes,
+                shiny_filter,
+                alpha_filter,
+                iv_filters,
+            )
+        else:
+            self.generator_update_thread = GeneratorUpdateThread(
+                self,
+                False,
+                seed,
+                starting_path,
+                advance_range.start,
+                advance_range.stop,
+                self.spawner.max_spawn_count,
+                self.encounter_table,
+                self.weather_combobox.currentData(),
+                self.time_combobox.currentData(),
+                species_info,
+                filtered_genders,
+                filtered_natures,
+                filtered_sizes,
+                shiny_filter,
+                alpha_filter,
+                iv_filters,
+            )
         self.generator_update_thread.progress.connect(self.progress_bar.setValue)
 
         def cleanup_generate():
@@ -277,6 +343,9 @@ class GeneratorWindow(QDialog):
             self.generate_button.setText("Generate")
             self.generate_button.clicked.disconnect(cleanup_generate)
             self.generate_button.clicked.connect(self.generate)
+            if self.progress_bar.maximum() == 0:
+                self.progress_bar.setMaximum(1)
+                self.progress_bar.setValue(1)
 
         self.generate_button.setText("Cancel")
         self.generate_button.clicked.disconnect(self.generate)
@@ -288,6 +357,7 @@ class GeneratorWindow(QDialog):
         # TODO: storing encounter info in the table feels hacky
         self.result_table.max_spawn_count = self.spawner.max_spawn_count
         self.result_table.encounter_table = self.encounter_table
+        self.result_table.second_wave_encounter_table = self.second_wave_encounter_table
         self.result_table.seed = seed
         self.result_table.weather = self.weather_combobox.currentData()
         self.result_table.time = self.time_combobox.currentData()
@@ -320,7 +390,7 @@ class GeneratorWindow(QDialog):
         self.result_table.insertRow(row_i)
         row = (
             advance,
-            "->".join(str(ko) for ko in path)
+            path_to_string(path)
             if self.spawner.max_spawn_count != 1
             else "N/A",
             get_name_en(species, form, is_alpha),
@@ -358,18 +428,21 @@ class GeneratorUpdateThread(QThread):
     progress = Signal(int)
     new_result = Signal(tuple)
 
-    def __init__(self, parent_window: GeneratorWindow, *args) -> None:
+    def __init__(self, parent_window: GeneratorWindow, is_mass_outbreak: bool, *args) -> None:
         super().__init__()
         self.parent_window = parent_window
         self.parent_data_hook = np.zeros(2, np.uint64)
-        self.generator_thread = GeneratorThread(*args, self.parent_data_hook)
+        self.generator_thread = GeneratorThread(is_mass_outbreak, *args, self.parent_data_hook)
         self.args = args
 
     def run(self) -> None:
         """Thread work"""
         self.generator_thread.start()
 
-        total_progress = compute_result_count(self.args[3], self.args[2])
+        if isinstance(self.args[3], EncounterAreaLA):
+            total_progress = -1
+        else:
+            total_progress = compute_result_count(self.args[4], self.args[3])
 
         result_count = 0
         while True:
@@ -393,7 +466,6 @@ class GeneratorUpdateThread(QThread):
             ):
                 break
             time.sleep(1)
-
         self.generator_thread.wait()
 
 
@@ -402,8 +474,9 @@ class GeneratorThread(QThread):
 
     finished = Signal()
 
-    def __init__(self, *args) -> None:
+    def __init__(self, is_outbreak: bool, *args) -> None:
         super().__init__()
+        self.is_outbreak = is_outbreak
         self.args = args
         self.results = TypedList.empty_list(
             item_type=numba.typeof(
@@ -426,5 +499,8 @@ class GeneratorThread(QThread):
 
     def run(self) -> None:
         """Thread work"""
-        generate(*self.args, self.results)
+        if self.is_outbreak:
+            generate_mass_outbreak(*self.args, self.results)
+        else:
+            generate_standard(*self.args, self.results)
         self.finished.emit()

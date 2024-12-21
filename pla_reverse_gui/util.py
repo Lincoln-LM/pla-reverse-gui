@@ -149,6 +149,27 @@ EVO_LINES = [
 ]
 
 
+def path_to_string(path: tuple[int]) -> str:
+    """Convert a path to a string with custom labels"""
+    return "->".join(
+        (
+            str(n) if n < 10 else
+            "Clear Wave" if n == 255 else
+            f"Ghost {n - 10}"
+        ) for n in path
+    )
+
+# TODO: this is hacky and only needed because result_table relies on checking the string
+def string_to_path(string: str) -> tuple[int]:
+    """Convert a string with custom labels to a path"""
+    return tuple(
+        (
+            255 if n == "Clear Wave" else
+            int(n.split(" ")[1]) + 10 if n.startswith("Ghost") else
+            int(n)
+        ) for n in string.split("->")
+    )
+
 def get_name_en(species: int, form: int = 0, is_alpha: bool = False) -> str:
     """Return the english name of a pokemon given its species, form, and alpha status"""
     return f"{'Alpha ' if is_alpha else ''}{SPECIES_EN[species]}{f'-{form}' if form else ''}"

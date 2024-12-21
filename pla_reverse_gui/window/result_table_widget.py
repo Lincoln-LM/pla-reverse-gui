@@ -11,6 +11,7 @@ from qtpy.QtCore import Qt
 
 # pylint: enable=no-name-in-module
 from .path_tracker_window import PathTrackerWindow
+from ..util import string_to_path
 
 
 class ResultTableWidget(QTableWidget):
@@ -68,11 +69,17 @@ class ResultTableWidget(QTableWidget):
         path_text = selected_row.text()
         if path_text == "N/A":
             return
-        path = (self.max_spawn_count,) + tuple(int(x) for x in path_text.split("->"))
+        if self.max_spawn_count == 4:
+            pre_path = (1, 1)
+        else:
+            pre_path = (self.max_spawn_count,)
+        path = string_to_path(path_text)
         path_tracker = PathTrackerWindow(
             self,
             self.encounter_table,
+            self.second_wave_encounter_table,
             self.seed,
+            pre_path,
             path,
             self.weather,
             self.time,
