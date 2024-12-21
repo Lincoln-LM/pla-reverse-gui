@@ -207,6 +207,8 @@ class GeneratorWindow(QDialog):
         self.shiny_filter.addItem("Square", 2)
         self.shiny_filter.addItem("Star/Square", 1 | 2)
         self.alpha_filter = QCheckBox("Alpha Only")
+        self.shortest_path_filter = QCheckBox("Only Shortest Path")
+        self.shortest_path_filter.setChecked(True)
 
         self.size_filter, size_widget = labled_widget(
             "Height/Scale Filter:", CheckableComboBox
@@ -221,6 +223,7 @@ class GeneratorWindow(QDialog):
         self.filter_layout.addWidget(shiny_widget)
         self.filter_layout.addWidget(size_widget)
         self.filter_layout.addWidget(self.alpha_filter)
+        self.filter_layout.addWidget(self.shortest_path_filter)
 
         self.iv_filter_widget = QWidget()
         self.iv_filter_layout = QVBoxLayout(self.iv_filter_widget)
@@ -278,6 +281,7 @@ class GeneratorWindow(QDialog):
         filtered_sizes = self.size_filter.get_checked_values()
         shiny_filter = self.shiny_filter.currentData() or 15
         alpha_filter = self.alpha_filter.checkState() == QtCore.Qt.Checked
+        shortest_path_filter = self.shortest_path_filter.checkState() == QtCore.Qt.Checked
         iv_filters = tuple(
             (iv_range.start, iv_range.stop - 1)
             for iv_range in (iv_filter.get_range() for iv_filter in self.iv_filters)
@@ -304,6 +308,7 @@ class GeneratorWindow(QDialog):
                 self,
                 True,
                 False,
+                shortest_path_filter,
                 seed,
                 self.first_wave_spawn_count.value(),
                 self.second_wave_spawn_count.value() if self.has_second_wave else 0,
@@ -322,6 +327,7 @@ class GeneratorWindow(QDialog):
                 self,
                 False,
                 True,
+                shortest_path_filter,
                 seed,
                 starting_path,
                 self.spawner.max_spawn_count,
@@ -341,6 +347,7 @@ class GeneratorWindow(QDialog):
                 self,
                 False,
                 False,
+                shortest_path_filter,
                 seed,
                 starting_path,
                 advance_range.start,
@@ -453,11 +460,12 @@ class GeneratorUpdateThread(QThread):
     progress = Signal(int)
     new_result = Signal(tuple)
 
-    def __init__(self, parent_window: GeneratorWindow, is_mass_outbreak: bool, is_variable: bool, *args) -> None:
+    def __init__(self, parent_window: GeneratorWindow, is_mass_outbreak: bool, is_variable: bool, shortest_path_only: bool, *args) -> None:
         super().__init__()
         self.parent_window = parent_window
         self.parent_data_hook = np.zeros(2, np.uint64)
         self.generator_thread = GeneratorThread(is_mass_outbreak, is_variable, *args, self.parent_data_hook)
+        self.shortest_path_only = shortest_path_only
         self.args = args
 
     def run(self) -> None:
@@ -471,6 +479,7 @@ class GeneratorUpdateThread(QThread):
             total_progress = compute_result_count(self.args[4], self.args[3])
 
         result_count = 0
+        result_ids = set()
         while True:
             # checking here ensures final copied data is from after the thread finishes
             thread_finished = (
@@ -484,7 +493,13 @@ class GeneratorUpdateThread(QThread):
             results = list(self.generator_thread.results)
             if len(results) > result_count:
                 for row in results[result_count:]:
-                    self.parent_window.add_result(row)
+                    if self.shortest_path_only:
+                        result_id = row[3] | (row[4] << 32)
+                        if result_id not in result_ids:
+                            self.parent_window.add_result(row)
+                            result_ids.add(result_id)
+                    else:
+                        self.parent_window.add_result(row)
                 result_count = len(results)
             if (
                 progress == total_progress
