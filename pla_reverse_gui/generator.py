@@ -351,13 +351,13 @@ def generate_variable(
                 count_after_spawns
             )
             queue.append(new_item)
-            new_item = (
-                ko_path + [np.uint8(kos), np.uint8(22)],
-                advance_seed(group_seed, generated_count),
-                count_idx + 2,
-                count_after_spawns
-            )
-            queue.append(new_item)
+            # new_item = (
+            #     ko_path + [np.uint8(kos), np.uint8(22)],
+            #     advance_seed(group_seed, generated_count),
+            #     count_idx + 2,
+            #     count_after_spawns
+            # )
+            # queue.append(new_item)
     return results
 
 
