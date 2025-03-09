@@ -241,18 +241,18 @@ def generate_variable(
 
     queue = []
     # variable multis always start by catching 2 isolated pokemon
-    queue.append(([np.uint8(2), np.uint8(21)], advance_seed(seed, 2), 0, 2))
+    queue.append(([np.uint8(2)], advance_seed(seed, 2), 0, 2))
     initial_advances = len(queue[0][0])
     # check parent_data[1] flag each item
     while len(queue) != 0 and parent_data[1] == 0:
         item = queue.pop()
         # increment progress counter
         atomic_add(parent_data, 0, 1)
-        advance = (len(item[0]) - initial_advances)//2
+        advance = len(item[0]) - initial_advances
         ko_path, group_seed, count_idx, current_spawn_count = item
         if count_idx >= len(count_values):
             continue
-        ko_count = ko_path[-2]
+        ko_count = ko_path[-1]
         count_before_spawns = current_spawn_count - ko_count
         # new spawns either fill the remaining slots or spawn the full count
         generated_count = max(0, count_values[count_idx] - count_before_spawns)
@@ -345,19 +345,12 @@ def generate_variable(
 
         for kos in range(0, count_after_spawns + 1):
             new_item = (
-                ko_path + [np.uint8(kos), np.uint8(21)],
+                ko_path + [np.uint8(kos)],
                 advance_seed(group_seed, generated_count),
                 count_idx + 1,
                 count_after_spawns
             )
             queue.append(new_item)
-            # new_item = (
-            #     ko_path + [np.uint8(kos), np.uint8(22)],
-            #     advance_seed(group_seed, generated_count),
-            #     count_idx + 2,
-            #     count_after_spawns
-            # )
-            # queue.append(new_item)
     return results
 
 

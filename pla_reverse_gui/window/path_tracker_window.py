@@ -99,11 +99,10 @@ class PathTrackerWindow(QDialog):
             if count_values[0] != -1:
                 current_path = path[: max(2 * advance + 2 if advance < 0 else advance + 2, 0)]
                 if advance >= 0:
-                    count_idx += path[advance + 1] - 20
+                    count_idx += 1
                     count_before_spawns = current_spawn_count - spawn_count
                     spawn_count = max(0, count_values[count_idx] - count_before_spawns)
                     current_spawn_count = count_before_spawns + spawn_count
-                    advance //= 2
             for _ in range(spawn_count):
                 generator_seed = np.uint64(group_rng.next())
                 generator_rng = Xoroshiro128PlusRejection(generator_seed)
