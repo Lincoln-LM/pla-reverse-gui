@@ -246,12 +246,12 @@ def generate_variable(
     # check parent_data[1] flag each item
     while len(queue) != 0 and parent_data[1] == 0:
         item = queue.pop()
-        # increment progress counter
-        atomic_add(parent_data, 0, 1)
         advance = len(item[0]) - initial_advances
         ko_path, group_seed, count_idx, current_spawn_count = item
         if count_idx >= len(count_values):
             continue
+        # increment progress counter
+        atomic_add(parent_data, 0, 1)
         ko_count = ko_path[-1]
         count_before_spawns = current_spawn_count - ko_count
         # new spawns either fill the remaining slots or spawn the full count

@@ -50,6 +50,37 @@ def compute_result_count(max_spawn_count: int, max_path_length: int) -> int:
     initial_value = 1 if max_spawn_count != 3 else 2
     return initial_value * (1 - max_spawn_count**max_path_length) // (1 - max_spawn_count)
 
+def compute_result_count_variable(spawn_counts: list[int]):
+    """Calculate the total amount of results to be generated for a given variable multi spawner"""
+    # number of results at each step that have the corresponding num_spawned
+    counts = {
+        1: 0,
+        # variable spawners always start with 2 spawns
+        2: 1,
+        3: 0
+    }
+    total_result_count = sum(counts.values())
+    for spawn_count in spawn_counts[1:]:
+        new_counts = {
+            1: 0,
+            2: 0,
+            3: 0
+        }
+        for num_spawned in range(1, 4):
+            # a num_spawned of N can be advanced N + 1 ways
+            # KOing 0,1,2,...,N spawns
+            for ko_count in range(num_spawned + 1):
+                # KOing M spawns reduces the spawn count to num_spawned - M
+                # meaning after this step the num_spawned will be max(num_spawned - M, spawn_count)
+                # as num_spawned will either remains the same (if its >= spawn_count)
+                # or increase to spawn_count
+                # (this loop is the same as just looping over num_spawned - ko_count in reverse)
+                new_counts[max(num_spawned - ko_count, spawn_count)] += counts[num_spawned]
+        total_result_count += sum(new_counts.values())
+        counts = new_counts
+
+    return total_result_count
+
 def labled_widget(
     label: str, widget_constructor: QWidget, *args, **kwargs
 ) -> tuple[QWidget, QWidget]:
@@ -299,7 +330,7 @@ class GeneratorWindow(QDialog):
 
         # TODO: calculate variable result count
         if self.spawner.is_mass_outbreak or self.spawner.min_spawn_count != self.spawner.max_spawn_count:
-            self.progress_bar.setMaximum(-1)
+            self.progress_bar.setMaximum(compute_result_count_variable(starting_path))
         else:
             self.progress_bar.setMaximum(compute_result_count(self.spawner.max_spawn_count, advance_range.stop))
 
@@ -472,9 +503,8 @@ class GeneratorUpdateThread(QThread):
         """Thread work"""
         self.generator_thread.start()
 
-        # TODO: calculate variable result count
         if isinstance(self.args[3], EncounterAreaLA):
-            total_progress = -1
+            total_progress = compute_result_count_variable(self.args[1])
         else:
             total_progress = compute_result_count(self.args[4], self.args[3])
 
