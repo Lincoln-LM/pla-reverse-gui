@@ -328,7 +328,6 @@ class GeneratorWindow(QDialog):
                 len(filtered_species) == 0 or (species, form) in filtered_species,
             )
 
-        # TODO: calculate variable result count
         if self.spawner.is_mass_outbreak or self.spawner.min_spawn_count != self.spawner.max_spawn_count:
             self.progress_bar.setMaximum(compute_result_count_variable(starting_path))
         else:
