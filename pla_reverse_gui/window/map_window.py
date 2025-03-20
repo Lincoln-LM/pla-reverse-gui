@@ -72,7 +72,7 @@ class MapWindow(QWidget):
         self.marker_filter.add_checked_item("Multi Spawners", 2, True)
         self.marker_filter.add_checked_item("Mass Outbreak Spawners", 4)
         self.marker_filter.add_checked_item("Massive Mass Outbreak Spawners", 8)
-        self.marker_filter.add_checked_item("Variable Multi Spawners", 16)
+        self.marker_filter.add_checked_item("Variable Multi Spawners", 16, True)
         self.marker_filter.changed.connect(self.update_mark_filter)
 
         self.location_combobox = QComboBox()
