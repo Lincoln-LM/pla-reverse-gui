@@ -13,9 +13,11 @@ class ETAProgressBar(QProgressBar):
 
     def __init__(self, parent=None) -> None:
         self.start_time: float = None
+        self.scale_factor: float = 1
         super().__init__(parent)
 
     def setValue(self, value: int) -> None:
+        value = int(value // self.scale_factor)
         if self.maximum() == 0:
             return
         QProgressBar.setValue(self, value)
@@ -30,7 +32,7 @@ class ETAProgressBar(QProgressBar):
             eta_hours, eta_minutes = divmod(eta_minutes, 60)
             eta_str = (
                 (f"{eta_hours:02.00f}:" if eta_hours > 0 else "")
-                + (f"{eta_minutes:02.00f}:" if eta_minutes > 0 else "")
+                + (f"{eta_minutes:02.00f}:" if eta_minutes > 0 or eta_hours > 0 else "")
                 + f"{eta_seconds:05.02f}"
                 + ("s" if eta_hours == 0 and eta_minutes == 0 else "")
             )
@@ -39,5 +41,9 @@ class ETAProgressBar(QProgressBar):
     def setMaximum(self, maximum: int) -> None:
         if maximum == -1:
             maximum = 0
+        # scale down to fit in s32
+        if maximum >= 1 << 31:
+            self.scale_factor = maximum/(1 << 30)
+            maximum = 1 << 30
         QProgressBar.setMaximum(self, maximum)
         self.start_time = None
