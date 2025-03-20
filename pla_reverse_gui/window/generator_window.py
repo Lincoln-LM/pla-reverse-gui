@@ -175,12 +175,10 @@ class GeneratorWindow(QDialog):
         # TODO: does second wave ever include new species?
         for slot in self.encounter_table.slots.view(np.recarray):
             self.unique_slots.add((slot.species, slot.form))
-            if slot.is_alpha:
-                continue
             if slot.species in self.added_species:
                 continue
             self.added_species.append(slot.species)
-            species_name = get_name_en(slot.species)
+            species_name = get_name_en(slot.species, None)
 
             shiny_rolls_combobox, shiny_rolls_outer = labled_widget(
                 species_name, QComboBox

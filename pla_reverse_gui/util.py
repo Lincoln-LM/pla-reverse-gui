@@ -173,7 +173,30 @@ def string_to_path(string: str) -> tuple[int]:
 
 def get_name_en(species: int, form: int = 0, is_alpha: bool = False) -> str:
     """Return the english name of a pokemon given its species, form, and alpha status"""
-    return f"{'Alpha ' if is_alpha else ''}{SPECIES_EN[species]}{f'-{form}' if form else ''}"
+    if form is None:
+        form_str = ""
+    # Unown
+    elif species == 201:
+        form_str = "-" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ!?"[form]
+    # Shellos and Gastrodon
+    elif species in (422, 423):
+        form_str = ("-West-Sea", "-East-Sea")[form]
+    # Rotom
+    elif species == 479:
+        form_str = ("-Heat", "-Wash", "-Frost", "-Fan", "-Mow")[form]
+    # Hisui forms
+    elif species in (58, 59, 100, 101, 157, 211, 215, 503, 549, 570, 571, 628, 705, 706, 713, 724):
+        form_str = "-Hisui" if form == 1 else "" if form == 0 else f"-{form}"
+    # Basculin
+    elif species == 550:
+        form_str = ("-Red-Striped", "-Blue-Striped", "-White-Striped")[form]
+    # Basculegion
+    elif species == 902:
+        form_str = ("-Male", "-Female")[form]
+    # TODO: burmy/wormadam/cherrim/legends/lady/lord?
+    else:
+        form_str = f"-{form}" if form else ""
+    return f"{'Alpha ' if is_alpha else ''}{SPECIES_EN[species]}{form_str}"
 
 
 def get_personal_info(species: int, form: int = 0) -> PersonalInfo8LA:
