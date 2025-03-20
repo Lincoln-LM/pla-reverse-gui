@@ -72,7 +72,7 @@ class MapWindow(QWidget):
         self.marker_filter.add_checked_item("Multi Spawners", 2, True)
         self.marker_filter.add_checked_item("Mass Outbreak Spawners", 4)
         self.marker_filter.add_checked_item("Massive Mass Outbreak Spawners", 8)
-        self.marker_filter.add_checked_item("Unusable Spawners", 16)
+        self.marker_filter.add_checked_item("Variable Multi Spawners", 16, True)
         self.marker_filter.changed.connect(self.update_mark_filter)
 
         self.location_combobox = QComboBox()
@@ -133,8 +133,8 @@ class MapWindow(QWidget):
         )
         self.selected_marker_icon.addTo(self.map)
 
-        self.unuseable_marker_icon = L.icon(
-            "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png",
+        self.variable_multi_marker_icon = L.icon(
+            "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-black.png",
             {
                 "shadowUrl": "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
                 "iconSize": [25, 41],
@@ -144,7 +144,7 @@ class MapWindow(QWidget):
             },
         )
 
-        self.unuseable_marker_icon.addTo(self.map)
+        self.variable_multi_marker_icon.addTo(self.map)
 
         self.single_spawner_icon = L.icon(
             "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
@@ -230,7 +230,7 @@ class MapWindow(QWidget):
                             else (
                                 self.multi_spawner_icon
                                 if multi_spawner
-                                else self.unuseable_marker_icon
+                                else self.variable_multi_marker_icon
                             )
                         )
                     )
@@ -409,13 +409,13 @@ class MapWindow(QWidget):
         if marker in self.rendered_markers:
             self.spawner_combobox.setCurrentIndex(self.rendered_markers.index(marker))
             spawner: PlacementSpawner8a = self.spawner_combobox.currentData()
-            # disable seed finder for variable multispawners
-            self.seed_finder_button.setDisabled(
-                spawner.min_spawn_count != spawner.max_spawn_count
-            )
-            self.generator_button.setDisabled(
-                spawner.min_spawn_count != spawner.max_spawn_count
-            )
+            # TODO: disable seed finder for alpha spawners
+            # self.seed_finder_button.setDisabled(
+            #     spawner.min_spawn_count != spawner.max_spawn_count
+            # )
+            # self.generator_button.setDisabled(
+            #     spawner.min_spawn_count != spawner.max_spawn_count
+            # )
             self.map.setZoom(2)
             self.map.setView(marker.latLng, 2)
             # is MMO
@@ -443,7 +443,7 @@ class MapWindow(QWidget):
             else:
                 self.first_wave_combobox.setHidden(True)
                 self.second_wave_combobox.setHidden(True)
-                self.spawner_summary.setText(
+                spawner_text = (
                     f"Spawn Count: {spawner.min_spawn_count}-{spawner.max_spawn_count}\n"
                     f"Table: {ENCOUNTER_TABLE_NAMES_LA.get(np.uint64(spawner.encounter_table_id), '')} - 0x{spawner.encounter_table_id:016X}\n"
                     + "\n".join(
@@ -455,6 +455,12 @@ class MapWindow(QWidget):
                     if np.uint64(spawner.encounter_table_id)
                     in ENCOUNTER_INFORMATION_LA[self.location_combobox.currentData()]
                     else "Encounter table not found."
+                )
+                # should only apply to unown, truncate spawner summary to 15 lines
+                if spawner_text.count("\n") > 15:
+                    spawner_text = "\n".join(spawner_text.split("\n")[:15]) + "\n..."
+                self.spawner_summary.setText(
+                    spawner_text
                 )
         # select new marker
         self.map.runJavaScriptForMap(

@@ -60,6 +60,8 @@ class PathTrackerWindow(QDialog):
         seed: np.uint64,
         pre_path: tuple[int],
         path: tuple[int],
+        count_values: tuple[int],
+        max_spawn_count: int,
         weather: LAWeather,
         time: LATime,
         species_info: dict[tuple[int, int], tuple[int, int, bool]],
@@ -78,17 +80,29 @@ class PathTrackerWindow(QDialog):
 
         group_rng = Xoroshiro128PlusRejection(seed)
         ghost_count = 3
+        count_idx = -1
+        # variable multi logic
+        current_spawn_count = 2
         for advance, spawn_count in enumerate(pre_path + path, start=-len(pre_path)):
             is_ghost = False
             # clear wave
             if spawn_count == 255:
                 spawn_count = 4
                 current_encounter_table = second_wave_encounter_table
+            elif spawn_count > 20:
+                continue
             elif spawn_count > 10:
                 ghost_count -= spawn_count - 10
                 spawn_count = 3 - ghost_count
                 is_ghost = True
             current_path = path[: max(advance + 1, 0)]
+            if count_values[0] != -1:
+                current_path = path[: max(2 * advance + 2 if advance < 0 else advance + 2, 0)]
+                if advance >= 0:
+                    count_idx += 1
+                    count_before_spawns = current_spawn_count - spawn_count
+                    spawn_count = max(0, count_values[count_idx] - count_before_spawns)
+                    current_spawn_count = count_before_spawns + spawn_count
             for _ in range(spawn_count):
                 generator_seed = np.uint64(group_rng.next())
                 generator_rng = Xoroshiro128PlusRejection(generator_seed)
@@ -157,4 +171,5 @@ class PathTrackerWindow(QDialog):
                 for j, value in enumerate(row):
                     item = QTableWidgetItem(value)
                     self.path_table.setItem(row_i, j, item)
-            group_rng.re_init(np.uint64(group_rng.next()))
+            if spawn_count != 0:
+                group_rng.re_init(np.uint64(group_rng.next()))

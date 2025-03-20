@@ -51,11 +51,13 @@ class ResultTableWidget(QTableWidget):
 
         self.action_open_path = QAction("Open Path Tracker", self)
         self.action_open_path.triggered.connect(self.open_path_tracker)
+        self.min_spawn_count = 0
         self.max_spawn_count = 0
         self.encounter_table = None
         self.seed = 0
         self.weather = None
         self.time = None
+        self.spawn_counts = None
 
     def context_menu_handler(self, pos):
         """Handler for QTableView context manager"""
@@ -71,6 +73,8 @@ class ResultTableWidget(QTableWidget):
             return
         if self.max_spawn_count == 4:
             pre_path = (1, 1)
+        elif self.min_spawn_count != self.max_spawn_count:
+            pre_path = (2,)
         else:
             pre_path = (self.max_spawn_count,)
         path = string_to_path(path_text)
@@ -81,6 +85,8 @@ class ResultTableWidget(QTableWidget):
             self.seed,
             pre_path,
             path,
+            self.spawn_counts,
+            self.max_spawn_count,
             self.weather,
             self.time,
             self.species_info,

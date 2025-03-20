@@ -70,6 +70,7 @@ class SeedFinderWindow(QDialog):
         self.results_1 = None
         self.results_2 = None
         self.results_gen = None
+        self.tried_first_order = False
 
         self.setWindowTitle(
             "Seed Finder "
@@ -90,6 +91,7 @@ class SeedFinderWindow(QDialog):
         }.get(spawner.encounter_table_id, None)
         self.spawner: PlacementSpawner8a = spawner
         self.is_multi_spawner: bool = self.spawner.min_spawn_count > 1 and not self.spawner.is_mass_outbreak
+        self.is_variable: bool = self.spawner.min_spawn_count != self.spawner.max_spawn_count
         self.encounter_table: EncounterAreaLA = encounter_table
         self.main_layout = QVBoxLayout(self)
         self.sub_widget = QWidget()
@@ -121,6 +123,7 @@ class SeedFinderWindow(QDialog):
         self.results_1 = None
         self.results_2 = None
         self.results_gen = None
+        self.tried_first_order = False
 
         def compute_fixed_seeds_1():
             self.worker_thread = ComputeFixedSeedsThread(
@@ -185,10 +188,12 @@ class SeedFinderWindow(QDialog):
             self.worker_thread.start()
 
         def compute_generator_seed():
-            self.console_window.log("Fixed seed search ended.")
+            if not self.tried_first_order:
+                self.console_window.log("Fixed seed search ended.")
             if self.results_2 is None:
                 self.console_window.log("Fixed seed search unsuccessful.")
                 return
+            self.tried_first_order = True
             self.worker_thread = ComputeGeneratorSeedsThread(
                 self.generator_seed_steps.spin_box.value(),
                 self.results_1,
@@ -219,10 +224,19 @@ class SeedFinderWindow(QDialog):
                 self.results_2, self.results_gen, self.is_multi_spawner
             )
             self.worker_thread.log.connect(self.console_window.log)
-            self.worker_thread.finished.connect(
-                lambda: self.console_window.log("Group seed search ended.")
-            )
+            self.worker_thread.valid_result.connect(on_group_seed_result)
             self.console_window.log("Starting group seed search.")
             self.worker_thread.start()
+
+        def on_group_seed_result(valid: bool):
+            if not valid:
+                self.console_window.log("Group seed search unsuccessful.")
+                if self.is_variable and self.tried_first_order:
+                    self.console_window.log("Testing other order.")
+                    temp = self.results_1
+                    self.results_1 = self.results_2
+                    self.results_2 = temp
+                    compute_generator_seed()
+            self.console_window.log("Group seed search ended.")
 
         compute_fixed_seeds_1()
