@@ -72,7 +72,7 @@ def compute_result_count_variable(spawn_counts: list[int]):
             for ko_count in range(num_spawned + 1):
                 # KOing M spawns reduces the spawn count to num_spawned - M
                 # meaning after this step the num_spawned will be max(num_spawned - M, spawn_count)
-                # as num_spawned will either remains the same (if its >= spawn_count)
+                # as num_spawned will either remain the same (if its >= spawn_count)
                 # or increase to spawn_count
                 # (this loop is the same as just looping over num_spawned - ko_count in reverse)
                 new_counts[max(num_spawned - ko_count, spawn_count)] += counts[num_spawned]
