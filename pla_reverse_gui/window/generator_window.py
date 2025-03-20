@@ -197,7 +197,7 @@ class GeneratorWindow(QDialog):
             self.shiny_rolls_comboboxes[
                 slot.species
             ] = shiny_rolls_combobox
-        starting_path_label = QLabel("Spawn Count Values" if is_variable else "Starting Path:")
+        starting_path_label = QLabel("Spawn Count Values:" if is_variable else "Starting Path:")
         starting_path_label.setVisible(self.spawner.max_spawn_count > 1 and not self.spawner.is_mass_outbreak)
         self.settings_layout.addWidget(starting_path_label)
         self.starting_path_input = QLineEdit()
