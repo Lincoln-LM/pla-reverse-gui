@@ -394,10 +394,7 @@ class MapWindow(QWidget):
         # should only apply to unown, truncate spawner summary to 15 lines
         if spawner_text.count("\n") > 15:
             spawner_text = "\n".join(spawner_text.split("\n")[:15]) + "\n..."
-        self.spawner_summary.setText(
-            spawner_text
-        )
-
+        self.spawner_summary.setText(spawner_text)
 
     def select_marker(self, marker: L.marker) -> None:
         """Select a marker on the map and update displays"""
@@ -409,13 +406,13 @@ class MapWindow(QWidget):
         if marker in self.rendered_markers:
             self.spawner_combobox.setCurrentIndex(self.rendered_markers.index(marker))
             spawner: PlacementSpawner8a = self.spawner_combobox.currentData()
-            # TODO: disable seed finder for alpha spawners
-            # self.seed_finder_button.setDisabled(
-            #     spawner.min_spawn_count != spawner.max_spawn_count
-            # )
-            # self.generator_button.setDisabled(
-            #     spawner.min_spawn_count != spawner.max_spawn_count
-            # )
+            is_alpha_spawner = all(
+                slot.is_alpha
+                for slot in ENCOUNTER_INFORMATION_LA[
+                    self.location_combobox.currentData()
+                ][np.uint64(spawner.encounter_table_id)].slots.view(np.recarray)
+            )
+            self.seed_finder_button.setDisabled(is_alpha_spawner)
             self.map.setZoom(2)
             self.map.setView(marker.latLng, 2)
             # is MMO
@@ -459,9 +456,7 @@ class MapWindow(QWidget):
                 # should only apply to unown, truncate spawner summary to 15 lines
                 if spawner_text.count("\n") > 15:
                     spawner_text = "\n".join(spawner_text.split("\n")[:15]) + "\n..."
-                self.spawner_summary.setText(
-                    spawner_text
-                )
+                self.spawner_summary.setText(spawner_text)
         # select new marker
         self.map.runJavaScriptForMap(
             f"{marker.jsName}.setIcon({self.selected_marker_icon.jsName})"
