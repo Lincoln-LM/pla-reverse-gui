@@ -127,13 +127,30 @@ class GeneratorWindow(QDialog):
         self.settings_widget = QWidget()
         self.settings_layout = QVBoxLayout(self.settings_widget)
         self.settings_layout.addWidget(QLabel("Seed:"))
-        self.seed_is_hex = QCheckBox("Hexadecimal?")
-        self.settings_layout.addWidget(self.seed_is_hex)
-        self.seed_is_hex.setChecked(True)
         self.seed_input = QLineEdit()
-        self.seed_input.setValidator(
-            QRegularExpressionValidator(QtCore.QRegularExpression("[0-9a-fA-F]{0,20}"))
-        )
+        self.seed_base_combobox = QComboBox()
+        self.seed_base_combobox.addItem("Hexadecimal", 16)
+        self.seed_base_combobox.addItem("Decimal", 10)
+        def seed_base_changed(index: int) -> None:
+            is_hex = index == 0
+            previous_text = self.seed_input.text()
+            seed_value = int(previous_text, 10 if is_hex else 16) if previous_text else 0
+            # TODO: validate this for decimal?
+            if seed_value >= (1 << 64):
+                seed_value = 0
+            self.seed_input.setValidator(
+                QRegularExpressionValidator(
+                    QtCore.QRegularExpression(
+                        "[0-9a-fA-F]{0,16}" if is_hex else "[0-9]{0,20}"
+                    )
+                )
+            )
+            self.seed_input.setText(
+                (f"{seed_value:X}" if is_hex else f"{seed_value}") if seed_value else ""
+            )
+        self.seed_base_combobox.currentIndexChanged.connect(seed_base_changed)
+        seed_base_changed(0)
+        self.settings_layout.addWidget(self.seed_base_combobox)
         self.settings_layout.addWidget(self.seed_input)
         settings_label = QLabel("Settings:")
         self.settings_layout.addWidget(settings_label)
@@ -292,8 +309,11 @@ class GeneratorWindow(QDialog):
     def generate(self) -> None:
         """Generate paths for spawner"""
         self.result_table.setRowCount(0)
-        seed_base = 16 if self.seed_is_hex.checkState() == QtCore.Qt.Checked else 10
-        seed = int(seed_str, seed_base) if (seed_str := self.seed_input.text()) else 0
+        seed = int(seed_str, self.seed_base_combobox.currentData()) if (seed_str := self.seed_input.text()) else 0
+        # TODO: more explicit feedback to user?
+        if seed >= (1 << 64):
+            self.seed_input.setText("")
+            return
         seed = np.uint64(seed)
         extra_shiny_rolls = 0
         if self.spawner.is_mass_outbreak:
