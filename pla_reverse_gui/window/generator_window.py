@@ -127,9 +127,12 @@ class GeneratorWindow(QDialog):
         self.settings_widget = QWidget()
         self.settings_layout = QVBoxLayout(self.settings_widget)
         self.settings_layout.addWidget(QLabel("Seed:"))
+        self.seed_is_hex = QCheckBox("Hexadecimal?")
+        self.settings_layout.addWidget(self.seed_is_hex)
+        self.seed_is_hex.setChecked(True)
         self.seed_input = QLineEdit()
         self.seed_input.setValidator(
-            QRegularExpressionValidator(QtCore.QRegularExpression("[0-9a-fA-F]{0,16}"))
+            QRegularExpressionValidator(QtCore.QRegularExpression("[0-9a-fA-F]{0,20}"))
         )
         self.settings_layout.addWidget(self.seed_input)
         settings_label = QLabel("Settings:")
@@ -289,7 +292,8 @@ class GeneratorWindow(QDialog):
     def generate(self) -> None:
         """Generate paths for spawner"""
         self.result_table.setRowCount(0)
-        seed = int(seed_str, 16) if (seed_str := self.seed_input.text()) else 0
+        seed_base = 16 if self.seed_is_hex.checkState() == QtCore.Qt.Checked else 10
+        seed = int(seed_str, seed_base) if (seed_str := self.seed_input.text()) else 0
         seed = np.uint64(seed)
         extra_shiny_rolls = 0
         if self.spawner.is_mass_outbreak:
