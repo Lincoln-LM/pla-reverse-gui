@@ -38,3 +38,25 @@ jobs:
           name: ${{ runner.os }} Build
           path: |
             dist/*
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download a Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      - name: Zip artifacts for release
+        run: |
+          for i in */; do zip -r "${i%/}.zip" "$i"; done
+        working-directory: artifacts
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: false
+          name: Latest Commit
+          tag_name: latest-commit
+          body: ${{ github.event.head_commit.message }}
+          files: artifacts/*
