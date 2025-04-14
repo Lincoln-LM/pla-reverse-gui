@@ -28,7 +28,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install -r requirements.txt
-          pip install cx_freeze
+          pip install cx_freeze==7.2.4
       - name: Freeze
         run: |
           cxfreeze --script main.py --target-dir dist --target-name=pla_reverse_gui
