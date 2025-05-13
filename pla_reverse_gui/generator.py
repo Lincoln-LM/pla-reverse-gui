@@ -353,7 +353,6 @@ def generate_variable(
             queue.append(new_item)
     return results
 
-
 @numba.njit(nogil=True)
 def generate_standard(
     seed: np.uint64,
@@ -430,6 +429,7 @@ def generate_standard(
                 if alpha_filter and not slot.is_alpha:
                     continue
                 fixed_rng.re_init(generator_rng.next())
+                ######
                 encryption_constant = fixed_rng.next_rand(0xFFFFFFFF)
                 sidtid = fixed_rng.next_rand(0xFFFFFFFF)
                 for _ in range(shiny_rolls):
@@ -496,6 +496,7 @@ def generate_standard(
                     np.uint8(height),
                     np.uint8(weight),
                 )
+                
                 results.append(pokemon)
                 # TODO: level rand?
 

@@ -193,6 +193,8 @@ def get_name_en(species: int, form: int = 0, is_alpha: bool = False) -> str:
     # Basculegion
     elif species == 902:
         form_str = ("-Male", "-Female")[form]
+    #elif species == Wurmple species
+    #    form_str = ("-C", "-S")[form]
     # TODO: burmy/wormadam/cherrim/legends/lady/lord?
     else:
         form_str = f"-{form}" if form else ""

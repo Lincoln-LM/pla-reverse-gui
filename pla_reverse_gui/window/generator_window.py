@@ -19,6 +19,7 @@ from qtpy.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QVBoxLayout,
+    QGridLayout,
     QWidget,
     QLabel,
     QLineEdit,
@@ -28,9 +29,10 @@ from qtpy.QtWidgets import (
     QTableWidgetItem,
     QSpinBox,
 )
-from qtpy.QtGui import QRegularExpressionValidator
+from qtpy.QtGui import QRegularExpressionValidator, QColor
 from qtpy import QtCore
 from qtpy.QtCore import QThread, Signal, Qt
+from qtpy.QtWidgets import QSizePolicy
 
 # pylint: enable=no-name-in-module
 
@@ -87,6 +89,7 @@ def labled_widget(
     """Build a labled widget"""
     outer_widget = QWidget()
     layout = QHBoxLayout(outer_widget)
+    layout.setSpacing(2)
     label_widget = QLabel(label)
     layout.addWidget(label_widget)
     widget = widget_constructor(*args, **kwargs)
@@ -96,6 +99,12 @@ def labled_widget(
 
 class GeneratorWindow(QDialog):
     """Spawner generator window"""
+    
+    def on_toggle(self):
+            visible = self.toggle_button.isChecked()
+            self.top_widget.setVisible(visible)
+            self.bottom_widget.setVisible(visible)
+            self.toggle_button.setText("▼ Hide Settings" if visible else "▶ Display Settings")
 
     def __init__(
         self,
@@ -124,13 +133,39 @@ class GeneratorWindow(QDialog):
         self.main_layout = QVBoxLayout(self)
         self.top_widget = QWidget()
         self.top_layout = QHBoxLayout(self.top_widget)
+        self.header_widget = QWidget()
+        self.header_layout = QHBoxLayout(self.header_widget)
         self.settings_widget = QWidget()
         self.settings_layout = QVBoxLayout(self.settings_widget)
-        self.settings_layout.addWidget(QLabel("Seed:"))
         self.seed_input = QLineEdit()
         self.seed_base_combobox = QComboBox()
         self.seed_base_combobox.addItem("Hexadecimal", 16)
         self.seed_base_combobox.addItem("Decimal", 10)
+        
+        page_header = QLabel("<b>Input Pokemon information for finding paths</b>")
+        page_header.setStyleSheet("font-size: 16px;")
+        self.header_layout.addWidget(page_header)
+        self.header_layout.addStretch()
+
+        self.toggle_button = QPushButton("▼ Hide Settings")
+        self.toggle_button.setCheckable(True)
+        self.toggle_button.setChecked(True)
+        self.toggle_button.clicked.connect(self.on_toggle)
+        
+        self.header_layout.addWidget(self.toggle_button)
+        
+        seed_row_layout = QHBoxLayout()
+        
+        self.settings_layout.addWidget(QLabel("<b>Seed:</b>"))
+        
+        seed_row_layout.addWidget(self.seed_base_combobox)
+        seed_row_layout.addWidget(self.seed_input, 1)
+        
+        self.settings_layout.addLayout(seed_row_layout)
+        
+        self.settings_layout.addSpacing(15)
+        
+
         def seed_base_changed(index: int) -> None:
             is_hex = index == 0
             previous_text = self.seed_input.text()
@@ -148,26 +183,28 @@ class GeneratorWindow(QDialog):
             self.seed_input.setText(
                 (f"{seed_value:X}" if is_hex else f"{seed_value}") if seed_value else ""
             )
+            
         self.seed_base_combobox.currentIndexChanged.connect(seed_base_changed)
         seed_base_changed(0)
-        self.settings_layout.addWidget(self.seed_base_combobox)
-        self.settings_layout.addWidget(self.seed_input)
-        settings_label = QLabel("Settings:")
+        settings_label = QLabel("<b>Settings:</b>")
         self.settings_layout.addWidget(settings_label)
-        self.weather_combobox, weather_widget = labled_widget("Weather:", QComboBox)
-        self.weather_combobox: QComboBox
+        self.time_weather_layout = QHBoxLayout()
+        self.time_weather_layout.addWidget(QLabel("Time and Weather:"))
+        self.weather_combobox = QComboBox()
+        
         for weather in LAWeather:
             if weather != LAWeather.NONE:
                 self.weather_combobox.addItem(weather.name.title(), weather)
-        self.time_combobox, time_widget = labled_widget("Time:", QComboBox)
-        self.time_combobox: QComboBox
+        
+        self.time_weather_layout.addWidget(self.weather_combobox)
+        self.time_combobox = QComboBox()
+        
         for time in LATime:
             self.time_combobox.addItem(time.name.title(), time)
         settings_label.setVisible(not self.spawner.is_mass_outbreak)
-        weather_widget.setVisible(not self.spawner.is_mass_outbreak)
-        time_widget.setVisible(not self.spawner.is_mass_outbreak)
-        self.settings_layout.addWidget(weather_widget)
-        self.settings_layout.addWidget(time_widget)
+        self.time_weather_layout.addWidget(self.time_combobox)
+        self.settings_layout.addLayout(self.time_weather_layout)
+        
         spawn_count_label = QLabel("Spawn Count:")
         spawn_count_label.setVisible(bool(self.spawner.is_mass_outbreak))
         self.settings_layout.addWidget(spawn_count_label)
@@ -178,16 +215,24 @@ class GeneratorWindow(QDialog):
         self.settings_layout.addWidget(first_wave_spawn_count_widget)
         self.settings_layout.addWidget(second_wave_spawn_count_widget)
         advance_range_label = QLabel("Advance Range:")
-        self.settings_layout.addWidget(advance_range_label)
+        self.advance_range_layout = QHBoxLayout()
+        
+        self.advance_range_layout.addWidget(advance_range_label)
         self.advance_range = RangeWidget(
             0, 20 if self.spawner.min_spawn_count > 1 else 9999
         )
         self.advance_range.max_entry.setMaximum(99999999)
         advance_range_label.setVisible(not (self.spawner.is_mass_outbreak or is_variable))
         self.advance_range.setVisible(not (self.spawner.is_mass_outbreak or is_variable))
-        self.settings_layout.addWidget(self.advance_range)
-        self.settings_layout.addWidget(QLabel("Shiny Rolls:"))
-        self.shiny_roll_entries = []
+        self.advance_range_layout.addWidget(self.advance_range)
+        self.settings_layout.addLayout(self.advance_range_layout)
+        
+        self.shiny_rolls_layout = QGridLayout()
+        row = 0
+        col = 0
+        max_per_row = 2
+        
+        self.settings_layout.addWidget(QLabel("<b>Shiny Rolls:</b>"))
 
         self.added_species = []
         self.unique_slots = set()
@@ -203,6 +248,7 @@ class GeneratorWindow(QDialog):
             shiny_rolls_combobox, shiny_rolls_outer = labled_widget(
                 species_name, QComboBox
             )
+            
             for item in (
                 ("Base Research", 1),
                 ("Research Level 10", 2),
@@ -211,26 +257,41 @@ class GeneratorWindow(QDialog):
                 ("Shiny Charm + Perfect Research", 7),
             ):
                 shiny_rolls_combobox.addItem(*item)
-            self.settings_layout.addWidget(shiny_rolls_outer)
-            self.shiny_rolls_comboboxes[
-                slot.species
-            ] = shiny_rolls_combobox
-        starting_path_label = QLabel("Spawn Count Values:" if is_variable else "Starting Path:")
+                self.shiny_rolls_layout.addWidget(shiny_rolls_outer, row, col)
+                self.shiny_rolls_comboboxes[slot.species] = shiny_rolls_combobox
+            col += 1
+            if col >= max_per_row:
+                col = 0
+                row += 1
+        self.settings_layout.addLayout(self.shiny_rolls_layout)
+        self.shiny_rolls_layout.setHorizontalSpacing(0)
+        self.shiny_rolls_layout.setVerticalSpacing(0)
+        
+        self.bottom_widget = QWidget()
+        self.bottom_layout = QVBoxLayout(self.bottom_widget)
+        
+        starting_path_label = QLabel("<b>Spawn Count Values:</b>" if is_variable else "<b>Starting Path:</b>")
         starting_path_label.setVisible(self.spawner.max_spawn_count > 1 and not self.spawner.is_mass_outbreak)
-        self.settings_layout.addWidget(starting_path_label)
         self.starting_path_input = QLineEdit()
         # TODO: regex validation
         # self.starting_path_input.setValidator(
         #     QRegularExpressionValidator(QtCore.QRegularExpression(""))
         # )
         self.starting_path_input.setVisible(self.spawner.max_spawn_count > 1 and not self.spawner.is_mass_outbreak)
-        self.settings_layout.addWidget(self.starting_path_input)
-
-        self.filter_widget = QWidget()
-        self.filter_layout = QVBoxLayout(self.filter_widget)
+        
+        self.bottom_layout.addWidget(starting_path_label)
+        self.bottom_layout.addWidget(self.starting_path_input)
+        self.bottom_layout.setContentsMargins(20, 0, 20, 0)
+        
+        self.iv_and_filter_widget = QWidget()
+        self.iv_and_filter_layout = QVBoxLayout(self.iv_and_filter_widget)
+        self.iv_and_filter_layout.setSpacing(0)
+        self.iv_and_filter_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.species_settings_layout = QGridLayout()
 
         self.species_filter, species_widget = labled_widget(
-            "Species Filter:", CheckableComboBox
+            "Species:", CheckableComboBox
         )
         self.species_filter: CheckableComboBox
         for species_form in self.unique_slots:
@@ -238,13 +299,13 @@ class GeneratorWindow(QDialog):
                 get_name_en(*species_form), species_form
             )
         self.gender_filter, gender_widget = labled_widget(
-            "Gender Filter:", CheckableComboBox
+            "Gender:", CheckableComboBox
         )
         self.gender_filter: CheckableComboBox
         self.gender_filter.add_checked_item("Male", 0)
         self.gender_filter.add_checked_item("Female", 1)
         self.nature_filter, nature_widget = labled_widget(
-            "Nature Filter:", CheckableComboBox
+            "Nature:", CheckableComboBox
         )
         self.nature_filter: CheckableComboBox
         for i, nature in enumerate(NATURES_EN):
@@ -258,24 +319,37 @@ class GeneratorWindow(QDialog):
         self.alpha_filter = QCheckBox("Alpha Only")
         self.shortest_path_filter = QCheckBox("Only Shortest Path")
         self.shortest_path_filter.setChecked(True)
+        self.chain_results_filter = QCheckBox("Only Chain Results")
+        
+        self.shortest_path_filter.clicked.connect(self.update_filter_states)
+        self.chain_results_filter.clicked.connect(self.update_filter_states)
 
         self.size_filter, size_widget = labled_widget(
-            "Height/Scale Filter:", CheckableComboBox
+            "Height/Scale:", CheckableComboBox
         )
         self.size_filter: CheckableComboBox
         self.size_filter.add_checked_item("XXXS (0)", 0)
         self.size_filter.add_checked_item("XXXL (255)", 255)
-
-        self.filter_layout.addWidget(species_widget)
-        self.filter_layout.addWidget(gender_widget)
-        self.filter_layout.addWidget(nature_widget)
-        self.filter_layout.addWidget(shiny_widget)
-        self.filter_layout.addWidget(size_widget)
-        self.filter_layout.addWidget(self.alpha_filter)
-        self.filter_layout.addWidget(self.shortest_path_filter)
-
-        self.iv_filter_widget = QWidget()
-        self.iv_filter_layout = QVBoxLayout(self.iv_filter_widget)
+        
+        self.species_settings_layout.addWidget(QLabel("<b>Species Settings:</b>"), 0, 0, 1, 3)
+        self.species_settings_layout.addWidget(species_widget, 1, 0)
+        self.species_settings_layout.addWidget(gender_widget, 1, 1)
+        self.species_settings_layout.addWidget(nature_widget, 1, 2)
+        self.species_settings_layout.addWidget(shiny_widget, 2, 0)
+        self.species_settings_layout.addWidget(size_widget, 2, 1)
+        self.species_settings_layout.addWidget(self.alpha_filter, 3, 0)
+        self.species_settings_layout.addWidget(self.shortest_path_filter, 3, 1)
+        self.species_settings_layout.addWidget(self.chain_results_filter, 3, 2)
+        
+        
+        self.iv_filter_layout = QGridLayout()
+        self.iv_filter_layout.addWidget(QLabel("<b>Individual Values (IV):</b>"), 0, 0, 1, 3)
+        self.iv_filter_layout.setVerticalSpacing(0)
+        
+        row = 1
+        col = 0
+        max_per_row = 3
+        
         self.iv_filters = (
             RangeWidget(0, 31, "HP:"),
             RangeWidget(0, 31, "Atk:"),
@@ -283,13 +357,21 @@ class GeneratorWindow(QDialog):
             RangeWidget(0, 31, "SpA:"),
             RangeWidget(0, 31, "SpD:"),
             RangeWidget(0, 31, "Spe:"),
-        )
+        )                                          
+                                                        
         for iv_filter in self.iv_filters:
-            self.iv_filter_layout.addWidget(iv_filter)
-
+            if col >= max_per_row:
+                col = 0
+                row += 1
+            self.iv_filter_layout.addWidget(iv_filter, row, col)
+            col+= 1
+        
+        self.iv_and_filter_layout.addLayout(self.iv_filter_layout)
+        self.iv_and_filter_layout.addSpacing(10)
+        self.iv_and_filter_layout.addLayout(self.species_settings_layout)
+        
         self.top_layout.addWidget(self.settings_widget)
-        self.top_layout.addWidget(self.iv_filter_widget)
-        self.top_layout.addWidget(self.filter_widget)
+        self.top_layout.addWidget(self.iv_and_filter_widget)
 
         self.progress_bar = ETAProgressBar()
 
@@ -297,13 +379,51 @@ class GeneratorWindow(QDialog):
         self.generate_button.clicked.connect(self.generate)
 
         self.result_table = ResultTableWidget()
+        self.main_layout.addWidget(self.header_widget)
         self.main_layout.addWidget(self.top_widget)
+        self.main_layout.addWidget(self.bottom_widget)
         self.main_layout.addWidget(self.generate_button)
         self.main_layout.addWidget(self.progress_bar)
         self.main_layout.addWidget(self.result_table)
+        
+        # Set size policies
+        self.settings_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        self.iv_and_filter_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+        # Set fixed widths for some widgets
+        self.seed_input.setFixedWidth(200)
+        self.weather_combobox.setMinimumWidth(150)
+        self.time_combobox.setMinimumWidth(150)
+
+        # Adjust layout stretch
+        self.top_layout.setStretch(0, 1)  # settings_widget
+        self.top_layout.setStretch(1, 1)  # iv_filter_widget
+        self.top_layout.setStretch(2, 2)  # filter_widget
+
+        # Set margins and spacing
+        self.main_layout.setSpacing(10)
+        self.main_layout.setContentsMargins(15, 15, 15, 15)
+        self.settings_layout.setSpacing(5)
+        self.iv_and_filter_layout.setSpacing(5)
+
+        # Adjust column widths in result table
+        if hasattr(self.result_table, 'COLUMNS'):
+            # If COLUMNS is a list of (name, width) tuples
+            total_width = sum(col[1] for col in self.result_table.COLUMNS)
+        else:
+            # Set column widths manually
+            total_width = 0
+            for i, width in enumerate([120, 180, 80, 80, 80, 80, 80, 80]):
+                self.result_table.setColumnWidth(i, width)
+                total_width += width
+
+        # Resize window to fit content
+        self.resize(total_width + 50, 800)
+        
         self.resize(
             sum(column[1] for column in self.result_table.COLUMNS),
             self.height(),
+        
         )
 
     def generate(self) -> None:
@@ -335,6 +455,8 @@ class GeneratorWindow(QDialog):
         shiny_filter = self.shiny_filter.currentData() or 15
         alpha_filter = self.alpha_filter.checkState() == QtCore.Qt.Checked
         shortest_path_filter = self.shortest_path_filter.checkState() == QtCore.Qt.Checked
+        chain_results_filter = self.chain_results_filter.isChecked()
+        
         iv_filters = tuple(
             (iv_range.start, iv_range.stop - 1)
             for iv_range in (iv_filter.get_range() for iv_filter in self.iv_filters)
@@ -361,6 +483,7 @@ class GeneratorWindow(QDialog):
                 True,
                 False,
                 shortest_path_filter,
+                chain_results_filter,
                 seed,
                 self.first_wave_spawn_count.value(),
                 self.second_wave_spawn_count.value() if self.has_second_wave else 0,
@@ -380,6 +503,7 @@ class GeneratorWindow(QDialog):
                 False,
                 True,
                 shortest_path_filter,
+                chain_results_filter,
                 seed,
                 starting_path,
                 self.spawner.max_spawn_count,
@@ -400,6 +524,7 @@ class GeneratorWindow(QDialog):
                 False,
                 False,
                 shortest_path_filter,
+                chain_results_filter,
                 seed,
                 starting_path,
                 advance_range.start,
@@ -493,16 +618,68 @@ class GeneratorWindow(QDialog):
             item = QTableWidgetItem()
             item.setData(Qt.EditRole, value)
             self.result_table.setItem(row_i, j, item)
-        # sort by paths first
-        self.result_table.model().sort(1, Qt.AscendingOrder)
-        # then by advances
-        self.result_table.model().sort(0, Qt.AscendingOrder)
-
+            
+        if self.chain_results_filter.isChecked():
+            # Then sort by advances first
+            self.result_table.model().sort(0, Qt.AscendingOrder)
+            # Then sort by paths
+            self.result_table.model().sort(1, Qt.AscendingOrder)
+            
+            # Add colors to the sorted results
+            colored_rows = []
+            color = QColor(35, 55, 75)
+            original_color = QColor(0, 0, 0, 0)
+            #current_path = path_to_string(path)
+            same_color = 0
+            current_chain_start = None
+            
+            if self.result_table.rowCount() > 1:
+                for row_idx in range(self.result_table.rowCount()):
+                    current_item = self.result_table.item(row_idx, 1)
+                    
+                    if (current_item is None) or (not current_item):
+                        continue
+                    
+                    current_path = current_item.text()
+                    is_continuation = False
+                        
+                    for row_index in range(self.result_table.rowCount() - 1):
+                        other_path_in_table = self.result_table.item(row_index, 1).text()
+                        
+                        if current_path.startswith(other_path_in_table + "->"):
+                            is_continuation = True
+                        
+                    if not is_continuation:
+                        same_color += 1
+                    if same_color % 2:
+                        for col in range(self.result_table.columnCount()):
+                            self.result_table.item(row_idx, col).setBackground(original_color)
+                    else:
+                        for col in range(self.result_table.columnCount()):
+                            self.result_table.item(row_idx, col).setBackground(color)
+                    
+        else:
+            # Sort by paths first
+            self.result_table.model().sort(1, Qt.AscendingOrder)
+            # then by advances
+            self.result_table.model().sort(0, Qt.AscendingOrder)
+            
+        
+        
+    
     def closeEvent(self, event):
         if self.generator_update_thread is not None:
             self.generator_update_thread.requestInterruption()
             self.generator_update_thread.wait()
         event.accept()
+        
+    def update_filter_states(self):
+        """Ensures that Only shortest path and chain results are exclusive"""
+        if self.sender().isChecked():
+            if self.sender() == self.shortest_path_filter:
+                self.chain_results_filter.setChecked(False)
+            else:
+                self.shortest_path_filter.setChecked(False)
 
 
 class GeneratorUpdateThread(QThread):
@@ -512,12 +689,14 @@ class GeneratorUpdateThread(QThread):
     progress = Signal(int)
     new_result = Signal(tuple)
 
-    def __init__(self, parent_window: GeneratorWindow, is_mass_outbreak: bool, is_variable: bool, shortest_path_only: bool, *args) -> None:
+    def __init__(self, parent_window: GeneratorWindow, is_mass_outbreak: bool, is_variable: bool, shortest_path_only: bool, chain_results: bool, *args) -> None:
         super().__init__()
         self.parent_window = parent_window
         self.parent_data_hook = np.zeros(2, np.uint64)
         self.generator_thread = GeneratorThread(is_mass_outbreak, is_variable, *args, self.parent_data_hook)
         self.shortest_path_only = shortest_path_only
+        self.chain_results = chain_results
+        self.next_group_id = 0
         self.args = args
 
     def run(self) -> None:
@@ -531,6 +710,8 @@ class GeneratorUpdateThread(QThread):
 
         result_count = 0
         result_ids = set()
+        row_cache = {}
+        path_cache = set()
         while True:
             # checking here ensures final copied data is from after the thread finishes
             thread_finished = (
@@ -544,11 +725,50 @@ class GeneratorUpdateThread(QThread):
             results = list(self.generator_thread.results)
             if len(results) > result_count:
                 for row in results[result_count:]:
+                    advance, path, species, ec, pid, *rest = row
+                    path_str = path_to_string(path)
+                    result_id = ec | (pid << 32)
+                    
                     if self.shortest_path_only:
-                        result_id = row[3] | (row[4] << 32)
                         if result_id not in result_ids:
                             self.parent_window.add_result(row)
                             result_ids.add(result_id)
+                    
+                    elif self.chain_results:
+                        # Check path relationships
+                        is_extension = any(
+                            path_str.startswith(cached_path + "->")
+                            for cached_path in row_cache.keys()
+                        )
+
+                        is_extended = any(
+                            cached_path.startswith(path_str + "->")
+                            for cached_path in row_cache.keys()
+                        )
+
+                        # Store current row and path
+                        row_cache[path_str] = row
+
+                        # Show if part of a chain
+                        if is_extension or is_extended:
+                            # Add original path if this extends it
+                            if is_extension:
+                                for cached_path, cached_row in row_cache.items():
+                                    if path_str.startswith(cached_path + "->"):
+                                        cached_ec = cached_row[3]
+                                        cached_pid = cached_row[4]
+                                        cached_id = cached_ec | (cached_pid << 32)
+                                        if (cached_id not in result_ids) or (cached_path not in path_cache):
+                                            self.parent_window.add_result(cached_row)
+                                            result_ids.add(cached_id)
+                                            path_cache.add(cached_path)
+
+                            # Add current path if not already shown
+                            if (result_id not in result_ids) or (path_str not in path_cache):
+                                self.parent_window.add_result(row)
+                                result_ids.add(result_id)
+                                path_cache.add(path_str)
+
                     else:
                         self.parent_window.add_result(row)
                 result_count = len(results)

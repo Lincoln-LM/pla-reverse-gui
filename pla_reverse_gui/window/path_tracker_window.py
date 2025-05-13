@@ -74,7 +74,7 @@ class PathTrackerWindow(QDialog):
         self.main_layout.addWidget(self.path_table)
         self.resize(
             sum(column[1] for column in self.path_table.COLUMNS),
-            self.height(),
+            max(10 * self.path_table.rowHeight(0) + self.path_table.horizontalHeader().height(), 600)
         )
         current_encounter_table = encounter_table
 
