@@ -78,7 +78,6 @@ def generate_mass_outbreak(
         is_ghost = not is_clear_wave and ko_path[-1] > 10
         # new round always spawns 4 pokemon
         spawn_count = 4 if is_clear_wave else 3 - ghost_count if is_ghost else ko_path[-1]
-        print(f"How about here?")
         for _ in range(spawn_count):
             generator_rng.re_init(group_rng.next())
             group_rng.next()
@@ -449,7 +448,6 @@ def generate_standard(
                 if alpha_filter and not is_alpha:
                     continue
                 fixed_rng.re_init(generator_rng.next())
-                ######
                 encryption_constant = fixed_rng.next_rand(0xFFFFFFFF)
                 sidtid = fixed_rng.next_rand(0xFFFFFFFF)
                 for _ in range(shiny_rolls):
