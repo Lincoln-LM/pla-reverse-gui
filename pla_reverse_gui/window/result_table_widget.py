@@ -71,10 +71,12 @@ class ResultTableWidget(QTableWidget):
         path_text = selected_row.text()
         if path_text == "N/A":
             return
+        spawn_counts = (-1,)
         if self.max_spawn_count == 4:
             pre_path = (1, 1)
         elif self.min_spawn_count != self.max_spawn_count:
             pre_path = (2,)
+            spawn_counts = self.spawn_counts
         else:
             pre_path = (self.max_spawn_count,)
         path = string_to_path(path_text)
@@ -85,7 +87,7 @@ class ResultTableWidget(QTableWidget):
             self.seed,
             pre_path,
             path,
-            self.spawn_counts,
+            spawn_counts,
             self.max_spawn_count,
             self.weather,
             self.time,
