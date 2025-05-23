@@ -258,6 +258,7 @@ def generate_variable(
         generated_count = max(0, count_values[count_idx] - count_before_spawns)
         count_after_spawns = count_before_spawns + generated_count
         group_rng.re_init(group_seed)
+        alpha_present = False
         for _ in range(generated_count):
             generator_rng.re_init(group_rng.next())
             group_rng.next()
@@ -266,12 +267,20 @@ def generate_variable(
                 np.int64(time),
                 np.int64(weather),  # 1/2**64
             )
+
             gender_ratio, shiny_rolls, filtered_species = species_info[
                 (slot.species, slot.form)
             ]
+            is_alpha = slot.is_alpha
+            
+            if is_alpha:
+                if alpha_present:
+                    is_alpha = False
+                alpha_present = True
+
             if not filtered_species:
                 continue
-            if alpha_filter and not slot.is_alpha:
+            if alpha_filter and not is_alpha:
                 continue
             fixed_rng.re_init(generator_rng.next())
             encryption_constant = fixed_rng.next_rand(0xFFFFFFFF)
@@ -319,7 +328,7 @@ def generate_variable(
             nature = fixed_rng.next_rand(25)
             if len(nature_filter) != 0 and nature not in nature_filter:
                 continue
-            if slot.is_alpha:
+            if is_alpha:
                 height = weight = 255
             else:
                 height = fixed_rng.next_rand(0x81) + fixed_rng.next_rand(0x80)
@@ -329,7 +338,7 @@ def generate_variable(
             pokemon = (
                 advance,
                 ko_path,
-                (slot.species, slot.form, slot.is_alpha),
+                (slot.species, slot.form, is_alpha),
                 np.uint32(encryption_constant),
                 np.uint32(pid),
                 ivs,
@@ -340,6 +349,7 @@ def generate_variable(
                 np.uint8(height),
                 np.uint8(weight),
             )
+            
             results.append(pokemon)
             # TODO: level rand?
 
@@ -352,7 +362,6 @@ def generate_variable(
             )
             queue.append(new_item)
     return results
-
 
 @numba.njit(nogil=True)
 def generate_standard(
@@ -412,6 +421,7 @@ def generate_standard(
         atomic_add(parent_data, 0, 1)
         advance = len(item[0]) - initial_advances
         ko_path, group_seed = item
+        alpha_present = False
         if advance >= min_adv:
             group_rng.re_init(group_seed)
             for _ in range(ko_path[-1]):
@@ -425,9 +435,17 @@ def generate_standard(
                 gender_ratio, shiny_rolls, filtered_species = species_info[
                     (slot.species, slot.form)
                 ]
+                
+                is_alpha = slot.is_alpha
+
+                if is_alpha:
+                    if alpha_present:
+                        is_alpha = False
+                    alpha_present = True
+                
                 if not filtered_species:
                     continue
-                if alpha_filter and not slot.is_alpha:
+                if alpha_filter and not is_alpha:
                     continue
                 fixed_rng.re_init(generator_rng.next())
                 encryption_constant = fixed_rng.next_rand(0xFFFFFFFF)
@@ -475,7 +493,7 @@ def generate_standard(
                 nature = fixed_rng.next_rand(25)
                 if len(nature_filter) != 0 and nature not in nature_filter:
                     continue
-                if slot.is_alpha:
+                if is_alpha:
                     height = weight = 255
                 else:
                     height = fixed_rng.next_rand(0x81) + fixed_rng.next_rand(0x80)
@@ -485,7 +503,7 @@ def generate_standard(
                 pokemon = (
                     advance,
                     ko_path,
-                    (slot.species, slot.form, slot.is_alpha),
+                    (slot.species, slot.form, is_alpha),
                     np.uint32(encryption_constant),
                     np.uint32(pid),
                     ivs,
@@ -496,6 +514,7 @@ def generate_standard(
                     np.uint8(height),
                     np.uint8(weight),
                 )
+                
                 results.append(pokemon)
                 # TODO: level rand?
 
